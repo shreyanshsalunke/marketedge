@@ -377,7 +377,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 }
 #chart-modal-close:hover{background:var(--bear-bg);border-color:var(--bear);color:var(--bear)}
 #chart-modal-tf{display:flex;gap:4px;padding:10px 18px;background:var(--bg3);border-bottom:1px solid var(--border)}
-#chart-modal-chart{padding:0;line-height:0;flex:1;overflow:hidden;display:flex;flex-direction:column}
+#chart-modal-chart{padding:0;line-height:0;flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--bg3)}
 .scard-chart{cursor:pointer;position:relative}
 
 .view-chart-btn{
@@ -2089,16 +2089,17 @@ function openChartModal(ticker, name, ohlcDaily, rs, patternKey, isLT){
 function renderModalChart(){
   const {ohlcDaily, rs, patternKey, mode, isLT} = MODAL_STATE;
   const ohlc = mode==='weekly' ? dailyToWeekly(ohlcDaily) : ohlcDaily;
-  const W = window.innerWidth;
+  const usedH = document.getElementById('chart-modal-head').offsetHeight
+              + document.getElementById('chart-modal-tf').offsetHeight;
+  const availH = window.innerHeight - usedH;
+  const availW = window.innerWidth;
+  // Use full width, let height be determined by viewBox aspect ratio
+  const W = availW;
   const html = isLT ? makeLTChart(ohlc, rs, W) : makeChart(ohlc, rs, patternKey, W);
   const chartEl = document.getElementById('chart-modal-chart');
   chartEl.innerHTML = html;
-  // stretch SVG to fill remaining vertical space
   const svg = chartEl.querySelector('svg');
   if(svg){
-    const usedH = document.getElementById('chart-modal-head').offsetHeight
-                + document.getElementById('chart-modal-tf').offsetHeight;
-    const availH = window.innerHeight - usedH;
     svg.style.width = '100%';
     svg.style.height = availH + 'px';
     svg.setAttribute('preserveAspectRatio','xMidYMid meet');
