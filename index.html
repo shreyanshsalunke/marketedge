@@ -8,15 +8,17 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#f4f6f9;--bg2:#ffffff;--bg3:#f0f2f6;--bg4:#e8ecf2;
-  --border:#dde2ea;--border2:#c8d0dc;
-  --text:#0f172a;--text2:#374151;--text3:#6b7280;
+  --bg:#f0f2f5;--bg2:#ffffff;--bg3:#f6f8fb;--bg4:#edf0f5;
+  --border:#e2e7ef;--border2:#c8d3e0;
+  --text:#0d1b2e;--text2:#2d3f55;--text3:#6b7a8d;
   --accent:#0f5fa8;--accent2:#1976d2;
-  --bull:#059669;--bull2:#047857;--bull-bg:rgba(5,150,105,.1);
-  --bear:#dc2626;--bear2:#b91c1c;--bear-bg:rgba(220,38,38,.1);
-  --neut:#b45309;--neut-bg:rgba(180,83,9,.1);
-  --purple:#6d28d9;--purple-bg:rgba(109,40,217,.1);
-  --cyan:#0891b2;--teal:#0f766e;
+  --bull:#047857;--bull2:#065f46;--bull-bg:rgba(5,120,85,.08);
+  --bear:#b91c1c;--bear2:#991b1b;--bear-bg:rgba(185,28,28,.08);
+  --neut:#92400e;--neut-bg:rgba(146,64,14,.08);
+  --purple:#5b21b6;--purple-bg:rgba(91,33,182,.08);
+  --cyan:#0e7490;--teal:#0f766e;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
   --font-display:'Chakra Petch',sans-serif;
   --font-mono:'JetBrains Mono',monospace;
   --font-body:'DM Sans',sans-serif;
@@ -26,11 +28,12 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 /* ── HEADER ── */
 #header{
   position:sticky;top:0;z-index:100;
-  background:rgba(255,255,255,.95);
-  backdrop-filter:blur(12px);
+  background:rgba(255,255,255,.97);
+  backdrop-filter:blur(16px);
   border-bottom:1px solid var(--border);
+  box-shadow:var(--shadow-sm);
   display:flex;align-items:center;gap:16px;
-  padding:0 20px;height:52px;
+  padding:0 24px;height:54px;
 }
 .logo{
   font-family:var(--font-display);font-size:18px;font-weight:700;
@@ -52,10 +55,11 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 
 /* ── TABS ── */
 #tabs{
-  position:sticky;top:52px;z-index:99;
+  position:sticky;top:54px;z-index:99;
   background:var(--bg2);
   border-bottom:1px solid var(--border);
-  display:flex;padding:0 20px;gap:0;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+  display:flex;padding:0 24px;gap:0;
 }
 .tab-btn{
   font-family:var(--font-display);font-size:11px;font-weight:500;
@@ -71,12 +75,12 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 .tab-btn.active .dot{background:var(--accent);box-shadow:0 0 6px var(--accent)}
 
 /* ── PANE COMMON ── */
-.pane{display:none;padding:20px;max-width:1600px;margin:0 auto}
+.pane{display:none;padding:24px;max-width:1600px;margin:0 auto}
 .pane.active{display:block}
 .section-title{
-  font-family:var(--font-display);font-size:10px;font-weight:600;
-  letter-spacing:.14em;text-transform:uppercase;color:var(--text3);
-  margin-bottom:14px;display:flex;align-items:center;gap:8px;
+  font-family:var(--font-display);font-size:9.5px;font-weight:700;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--text3);
+  margin-bottom:16px;display:flex;align-items:center;gap:10px;
 }
 .section-title::after{content:'';flex:1;height:1px;background:var(--border)}
 
@@ -85,11 +89,12 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 @media(max-width:1100px){#index-grid{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:800px){#index-grid{grid-template-columns:repeat(2,1fr)}}
 .idx-card{
-  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
-  padding:14px 16px;position:relative;overflow:hidden;
-  transition:border-color .2s;cursor:default;
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+  padding:16px 18px;position:relative;overflow:hidden;
+  transition:border-color .2s,box-shadow .2s;cursor:default;
+  box-shadow:var(--shadow-sm);
 }
-.idx-card:hover{border-color:var(--border2)}
+.idx-card:hover{border-color:var(--border2);box-shadow:var(--shadow-md)}
 .idx-card::before{
   content:'';position:absolute;top:0;left:0;right:0;height:2px;
   background:linear-gradient(90deg,transparent,var(--accent-line,var(--border)),transparent);
@@ -111,7 +116,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 /* ── BREADTH ROW ── */
 #breadth-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px}
 @media(max-width:700px){#breadth-row{grid-template-columns:1fr}}
-.breadth-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px 20px}
+.breadth-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 22px;box-shadow:var(--shadow-sm)}
 .breadth-title{font-family:var(--font-display);font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:12px}
 .gauge-wrap{display:flex;align-items:center;gap:14px}
 .gauge-val{font-family:var(--font-mono);font-size:28px;font-weight:600}
@@ -172,7 +177,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 .sector-pct{font-family:var(--font-mono);font-size:15px;font-weight:600;color:#fff}
 
 /* RRG */
-#rrg-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px}
+#rrg-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px;box-shadow:var(--shadow-sm)}
 #rrg-svg{width:100%;max-width:500px;display:block;margin:0 auto}
 
 /* ── PANE 3: SCREENER ── */
@@ -188,8 +193,8 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 @media(max-width:700px){#screener-grid{grid-template-columns:1fr}}
 
 /* Stock cards */
-.scard{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .2s}
-.scard:hover{border-color:var(--border2)}
+.scard{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .2s,box-shadow .2s;box-shadow:var(--shadow-sm)}
+.scard:hover{border-color:var(--border2);box-shadow:var(--shadow-md)}
 .scard.canslim-card{border-left:3px solid var(--purple)}
 .scard-head{padding:12px 14px 0}
 .scard-top{display:flex;align-items:center;gap:6px;margin-bottom:3px}
@@ -222,21 +227,21 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 .pill.warn{background:var(--neut-bg);border-color:var(--neut);color:var(--neut)}
 
 /* Chart controls */
-.chart-controls{display:flex;gap:4px;padding:0 14px 4px;align-items:center}
+.chart-controls{display:flex;gap:4px;padding:7px 14px 5px;align-items:center;background:var(--bg3);border-top:1px solid var(--border)}
 .ct-btn{
   font-family:var(--font-display);font-size:8px;font-weight:600;letter-spacing:.08em;
   padding:3px 10px;border-radius:3px;cursor:pointer;
   background:var(--bg3);border:1px solid var(--border);color:var(--text3);transition:all .15s;
 }
 .ct-btn.active{background:var(--accent);color:#000;border-color:var(--accent)}
-.chart-indicators{display:flex;gap:8px;padding:2px 14px 3px;flex-wrap:wrap}
-.ci{display:inline-flex;align-items:center;gap:3px;font-size:8px}
+.chart-indicators{display:flex;gap:8px;padding:3px 14px 5px;flex-wrap:wrap;background:var(--bg3);border-bottom:1px solid var(--border)}.ci{display:inline-flex;align-items:center;gap:3px;font-size:8px}
 .ci b{display:block;width:12px;height:2px;border-radius:1px}
 .ci.e9{color:#9333ea} .ci.e9 b{background:#9333ea}
 .ci.e21{color:#f97316} .ci.e21 b{background:#f97316}
 .ci.s50{color:#2563eb} .ci.s50 b{background:#2563eb}
 .ci.s200{color:#dc2626} .ci.s200 b{background:#dc2626}
-.scard-chart{padding:0 0 6px}
+.scard-chart{padding:0;overflow:hidden;border-radius:0 0 8px 8px;border-top:1px solid var(--border)}
+.scard-chart svg{display:block}
 
 /* CANSLIM card extras */
 .canslim-score-bar{height:3px;background:var(--bg3);border-radius:2px;margin:0 14px 8px;overflow:hidden}
@@ -304,7 +309,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 .watch-empty{color:var(--text3);padding:40px 0;text-align:center;font-size:13px}
 
 /* ── SECTOR FILTER ── */
-#sector-filter-bar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+#sector-filter-bar{display:none}
 .sf-label{font-size:9px;color:var(--text3);font-family:var(--font-display);letter-spacing:.08em;text-transform:uppercase;margin-right:2px;flex-shrink:0}
 .sf-btn{font-size:9px;padding:3px 10px;border-radius:4px;cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--text3);transition:all .15s;font-family:var(--font-display);letter-spacing:.04em;white-space:nowrap}
 .sf-btn:hover{color:var(--text2);border-color:var(--border2)}
@@ -481,16 +486,15 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 <div class="pane" id="pane-screener">
   <!-- Market condition selector -->
   <div id="mc-bar">
-    <div class="mc-btn bullish active" data-mc="bullish">🟢 Bullish Market</div>
-    <div class="mc-btn bearish" data-mc="bearish">🔴 Bearish Market</div>
-    <div class="mc-btn choppy" data-mc="choppy">〰️ Choppy Market</div>
+    <div class="mc-btn bullish active" data-mc="bullish">📈 Swing Setups</div>
+    <div class="mc-btn bearish" data-mc="bearish">🚫 Stage 4 Avoid</div>
   </div>
   <!-- Regime warning banner -->
   <div id="regime-warning"></div>
   <!-- Auto-suggest banner -->
   <div id="mc-suggest"></div>
   <!-- Sector filter -->
-  <div id="sector-filter-bar"></div>
+
   <!-- Strategy sub-tabs -->
   <div id="strategy-tabs"></div>
   <!-- Swing / Long Term toggle -->
@@ -542,6 +546,28 @@ function mockOHLC(ticker,bars=60,trend=0.4,vol=0.018,startPrice=null){
 function mockRSLine(ohlc){
   let rs=1.0;
   return ohlc.map((_,i)=>{rs*=(1+(Math.sin(i*.3+2)*.004+.0015));return +rs.toFixed(4);});
+}
+
+// ── DAILY → WEEKLY AGGREGATION ───────────────────────────────────────────────
+function dailyToWeekly(ohlc){
+  if(!ohlc||!ohlc.length)return[];
+  const out=[];
+  for(let i=0;i<ohlc.length;i+=5){
+    const w=ohlc.slice(i,Math.min(i+5,ohlc.length));
+    if(!w.length)continue;
+    out.push({o:w[0].o,h:Math.max(...w.map(d=>d.h)),
+      l:Math.min(...w.map(d=>d.l)),c:w[w.length-1].c,
+      v:w.reduce((a,b)=>a+(b.v||0),0)});
+  }
+  return out;
+}
+// Chart data cache for daily/weekly switch
+const CHART_CACHE={};
+function getChartOHLC(s,weekly=false){
+  const real=s.chart&&s.chart.length>=15;
+  const daily=real?s.chart:shapeOHLC(s.ticker,s.strategy||'BASE',60);
+  if(real)CHART_CACHE[s.ticker]=s.chart;
+  return weekly?dailyToWeekly(daily):daily;
 }
 
 // ── PATTERN-SHAPED OHLC GENERATOR ────────────────────────────────────────────
@@ -759,7 +785,7 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
   // ── Pattern badge (top-left corner) ────────────────────────────────────────
   const BL={VCP:'VCP',BASE:'FLAT BASE',FLAG:'BULL FLAG',FLAT_BASE:'FLAT BASE',
     EP:'EP/EGU',EGU:'EP/EGU',PP:'PKT PIVOT',HTF:'HI-TIGHT FLAG',
-    STAGE2:'STAGE 2',NR7:'NR7 SQUEEZE',RS_HIGH:'RS NEW HIGH',EMA_PULL:'EMA PULL',
+    STAGE1_BO:'STAGE 1→2', STAGE2:'STAGE 2',NR7:'NR7 SQUEEZE',RS_HIGH:'RS NEW HIGH',EMA_PULL:'EMA PULL',
     BREAKDOWN:'BREAKDOWN',STAGE4:'STAGE 4',FAILED_BO:'FAILED BO',
     SHORT_EP:'SHORT EP',DIST_TOP:'DIST TOP',
     DARVAS:'DARVAS BOX',OB_BOUNCE:'OVERSOLD',
@@ -770,7 +796,7 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
   };
   const BC={VCP:'#0f5fa8',BASE:'#f59e0b',FLAG:'#10b981',FLAT_BASE:'#f59e0b',
     EP:'#8b5cf6',EGU:'#8b5cf6',PP:'#0d9488',HTF:'#10b981',
-    STAGE2:'#3b82f6',NR7:'#0f5fa8',RS_HIGH:'#10b981',EMA_PULL:'#f97316',
+    STAGE1_BO:'#6366f1', STAGE2:'#3b82f6',NR7:'#0f5fa8',RS_HIGH:'#10b981',EMA_PULL:'#f97316',
     BREAKDOWN:'#ef4444',STAGE4:'#ef4444',FAILED_BO:'#ef4444',SHORT_EP:'#ef4444',DIST_TOP:'#ef4444',
     DARVAS:'#f59e0b','200_BOUNCE':'#3b82f6',OB_BOUNCE:'#3b82f6',
     SUPPORT:'#3b82f6',VOL_SQUEEZE:'#8b5cf6',
@@ -781,7 +807,7 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
   const bc=BC[patternKey]||'#64748b';
   const bw2=bl.length*4.2+10;
   s+=`<rect x="${pL+1}" y="2" width="${bw2}" height="12" rx="2" fill="${bc}" opacity=".88"/>`;
-  s+=`<text x="${(pL+1+bw2/2).toFixed(1)}" y="11" text-anchor="middle" font-size="6.5" fill="#000" font-weight="700" font-family="Chakra Petch,sans-serif">${bl}</text>`;
+  s+=`<text x="${(pL+1+bw2/2).toFixed(1)}" y="11" text-anchor="middle" font-size="5" fill="#000" font-weight="700" font-family="Chakra Petch,sans-serif">${bl}</text>`;
 
   // ── Shared level helpers ────────────────────────────────────────────────────
   const maxH=Math.max(...highs), pivY=pY(maxH);
@@ -789,12 +815,12 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
   const suppPrice=Math.min(...recLows), suppY=pY(suppPrice);
 
   function pivotLine(color='#f59e0b',label='PIVOT'){
-    s+=`<line x1="${pL}" y1="${pivY.toFixed(1)}" x2="${CW}" y2="${pivY.toFixed(1)}" stroke="${color}" stroke-width=".8" stroke-dasharray="3,2" opacity=".75"/>`;
-    s+=`<text x="${CW-2}" y="${(pivY-2).toFixed(1)}" text-anchor="end" font-size="6" fill="${color}" font-family="Chakra Petch,sans-serif" font-weight="600">${label}</text>`;
+    s+=`<line x1="${pL}" y1="${pivY.toFixed(1)}" x2="${CW}" y2="${pivY.toFixed(1)}" stroke="${color}" stroke-width=".55" stroke-dasharray="3,2" opacity=".75"/>`;
+    s+=`<text x="${CW-2}" y="${(pivY-2).toFixed(1)}" text-anchor="end" font-size="4.5" fill="${color}" font-family="Chakra Petch,sans-serif" font-weight="600">${label}</text>`;
   }
   function suppLine(color='#2563eb',label='SUPPORT'){
     s+=`<line x1="${pL}" y1="${suppY.toFixed(1)}" x2="${CW}" y2="${suppY.toFixed(1)}" stroke="${color}" stroke-width=".6" stroke-dasharray="2,3" opacity=".55"/>`;
-    s+=`<text x="${CW-2}" y="${(suppY-2).toFixed(1)}" text-anchor="end" font-size="6" fill="${color}" font-family="Chakra Petch,sans-serif">${label}</text>`;
+    s+=`<text x="${CW-2}" y="${(suppY-2).toFixed(1)}" text-anchor="end" font-size="4.5" fill="${color}" font-family="Chakra Petch,sans-serif">${label}</text>`;
   }
 
   // ── BULLISH ─────────────────────────────────────────────────────────────────
@@ -816,9 +842,9 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
     const blo=Math.min(...lows.slice(bs,be))*0.996;
     const bTopY=pY(bh),bBotY=pY(blo),bsx=bx(bs),bex=bx(be);
     s+=`<rect x="${bsx}" y="${bTopY.toFixed(1)}" width="${(bex-bsx).toFixed(1)}" height="${(bBotY-bTopY).toFixed(1)}" fill="#f59e0b" opacity=".05" rx="2"/>`;
-    s+=`<line x1="${bsx}" y1="${bTopY.toFixed(1)}" x2="${bex}" y2="${bTopY.toFixed(1)}" stroke="#f59e0b" stroke-width=".8" stroke-dasharray="3,2" opacity=".75"/>`;
+    s+=`<line x1="${bsx}" y1="${bTopY.toFixed(1)}" x2="${bex}" y2="${bTopY.toFixed(1)}" stroke="#f59e0b" stroke-width=".55" stroke-dasharray="3,2" opacity=".75"/>`;
     s+=`<line x1="${bsx}" y1="${bBotY.toFixed(1)}" x2="${bex}" y2="${bBotY.toFixed(1)}" stroke="#2563eb" stroke-width=".6" stroke-dasharray="2,3" opacity=".5"/>`;
-    s+=`<text x="${bex-2}" y="${(bTopY-2).toFixed(1)}" text-anchor="end" font-size="6" fill="#f59e0b" font-family="Chakra Petch,sans-serif" font-weight="600">PIVOT</text>`;
+    s+=`<text x="${bex-2}" y="${(bTopY-2).toFixed(1)}" text-anchor="end" font-size="4.5" fill="#f59e0b" font-family="Chakra Petch,sans-serif" font-weight="600">PIVOT</text>`;
   }
 
   if(['FLAG','HTF'].includes(patternKey)){
@@ -826,9 +852,9 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
     const fh=Math.max(...highs.slice(fs,fe)),fl=Math.min(...lows.slice(fs,fe));
     const fsx=bx(fs),fex=bx(fe);
     s+=`<rect x="${fsx}" y="${pY(fh).toFixed(1)}" width="${(fex-fsx).toFixed(1)}" height="${(pY(fl)-pY(fh)).toFixed(1)}" fill="#10b981" opacity=".06" rx="2"/>`;
-    s+=`<line x1="${fsx}" y1="${pY(fh).toFixed(1)}" x2="${fex}" y2="${pY(fh*.997).toFixed(1)}" stroke="#10b981" stroke-width=".8" stroke-dasharray="3,2" opacity=".7"/>`;
+    s+=`<line x1="${fsx}" y1="${pY(fh).toFixed(1)}" x2="${fex}" y2="${pY(fh*.997).toFixed(1)}" stroke="#10b981" stroke-width=".55" stroke-dasharray="3,2" opacity=".7"/>`;
     s+=`<line x1="${fsx}" y1="${pY(fl).toFixed(1)}" x2="${fex}" y2="${pY(fl*1.003).toFixed(1)}" stroke="#10b981" stroke-width=".7" stroke-dasharray="2,3" opacity=".5"/>`;
-    s+=`<text x="${fex-2}" y="${(pY(fh)-2).toFixed(1)}" text-anchor="end" font-size="6" fill="#10b981" font-family="Chakra Petch,sans-serif" font-weight="600">PIVOT</text>`;
+    s+=`<text x="${fex-2}" y="${(pY(fh)-2).toFixed(1)}" text-anchor="end" font-size="4.5" fill="#10b981" font-family="Chakra Petch,sans-serif" font-weight="600">PIVOT</text>`;
   }
 
   if(['EP','EGU'].includes(patternKey)){
@@ -836,10 +862,10 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
     for(let i=1;i<n;i++){const g=ohlc[i].o/ohlc[i-1].c-1;if(g>maxG){maxG=g;gb=i;}}
     const gx=bx(gb);
     const gy1=pY(ohlc[gb-1].c),gy2=pY(ohlc[gb].o);
-    s+=`<line x1="${(+gx-bw*1.2).toFixed(1)}" y1="${gy1.toFixed(1)}" x2="${(+gx+bw*1.2).toFixed(1)}" y2="${gy1.toFixed(1)}" stroke="#8b5cf6" stroke-width=".9" opacity=".85"/>`;
-    s+=`<line x1="${(+gx-bw*1.2).toFixed(1)}" y1="${gy2.toFixed(1)}" x2="${(+gx+bw*1.2).toFixed(1)}" y2="${gy2.toFixed(1)}" stroke="#8b5cf6" stroke-width=".9" opacity=".85"/>`;
+    s+=`<line x1="${(+gx-bw*1.2).toFixed(1)}" y1="${gy1.toFixed(1)}" x2="${(+gx+bw*1.2).toFixed(1)}" y2="${gy1.toFixed(1)}" stroke="#8b5cf6" stroke-width=".6" opacity=".75"/>`;
+    s+=`<line x1="${(+gx-bw*1.2).toFixed(1)}" y1="${gy2.toFixed(1)}" x2="${(+gx+bw*1.2).toFixed(1)}" y2="${gy2.toFixed(1)}" stroke="#8b5cf6" stroke-width=".6" opacity=".75"/>`;
     s+=`<line x1="${gx}" y1="${gy1.toFixed(1)}" x2="${gx}" y2="${gy2.toFixed(1)}" stroke="#8b5cf6" stroke-width=".6" stroke-dasharray="1,2" opacity=".6"/>`;
-    s+=`<text x="${(+gx+bw*1.4).toFixed(1)}" y="${((gy1+gy2)/2+3).toFixed(1)}" font-size="6" fill="#8b5cf6" font-family="Chakra Petch,sans-serif">GAP↑</text>`;
+    s+=`<text x="${(+gx+bw*1.4).toFixed(1)}" y="${((gy1+gy2)/2+3).toFixed(1)}" font-size="4.5" fill="#8b5cf6" font-family="Chakra Petch,sans-serif">GAP↑</text>`;
     s+=`<line x1="${gx}" y1="${gy2.toFixed(1)}" x2="${CW}" y2="${gy2.toFixed(1)}" stroke="#8b5cf6" stroke-width=".6" stroke-dasharray="2,3" opacity=".45"/>`;
   }
 
@@ -848,8 +874,8 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
     for(let i=10;i<n;i++){if(ohlc[i].c>ohlc[i].o&&vols[i]>maxUV){maxUV=vols[i];ppb=i;}}
     const ppx=bx(ppb),ppy1=pY(ohlc[ppb].l)-3,ppy2=pY(ohlc[ppb].h)+3;
     s+=`<rect x="${(+ppx-bw*.7).toFixed(1)}" y="${ppy2.toFixed(1)}" width="${(bw*1.4).toFixed(1)}" height="${(ppy1-ppy2).toFixed(1)}" fill="#0d9488" opacity=".14" rx="2"/>`;
-    s+=`<rect x="${(+ppx-bw*.7).toFixed(1)}" y="${ppy2.toFixed(1)}" width="${(bw*1.4).toFixed(1)}" height="${(ppy1-ppy2).toFixed(1)}" fill="none" stroke="#0d9488" stroke-width=".7" opacity=".75" rx="2"/>`;
-    s+=`<text x="${(+ppx).toFixed(1)}" y="${(+ppy2-2).toFixed(1)}" text-anchor="middle" font-size="6" fill="#0d9488" font-family="Chakra Petch,sans-serif">PP</text>`;
+    s+=`<rect x="${(+ppx-bw*.7).toFixed(1)}" y="${ppy2.toFixed(1)}" width="${(bw*1.4).toFixed(1)}" height="${(ppy1-ppy2).toFixed(1)}" fill="none" stroke="#0d9488" stroke-width=".5" opacity=".65" rx="2"/>`;
+    s+=`<text x="${(+ppx).toFixed(1)}" y="${(+ppy2-2).toFixed(1)}" text-anchor="middle" font-size="4.5" fill="#0d9488" font-family="Chakra Petch,sans-serif">PP</text>`;
     suppLine('#0d9488','PP SUPPORT');
   }
 
@@ -857,7 +883,7 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
     const sma21=calcEMA(closes,21),validEMA=sma21.filter(v=>v!==null);
     if(validEMA.length>3){const ey=pY(validEMA[validEMA.length-1]);
       s+=`<line x1="${pL}" y1="${ey.toFixed(1)}" x2="${CW}" y2="${ey.toFixed(1)}" stroke="#f97316" stroke-width=".8" stroke-dasharray="2,2" opacity=".55"/>`;
-      s+=`<text x="${CW-2}" y="${(ey-2).toFixed(1)}" text-anchor="end" font-size="6" fill="#f97316" font-family="Chakra Petch,sans-serif">21 EMA SUPPORT</text>`;
+      s+=`<text x="${CW-2}" y="${(ey-2).toFixed(1)}" text-anchor="end" font-size="4.5" fill="#f97316" font-family="Chakra Petch,sans-serif">21 EMA SUPPORT</text>`;
     }
   }
 
@@ -867,12 +893,12 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
     const lh=Math.max(...highs.slice(0,Math.floor(n*.25))),rh=Math.max(...highs.slice(Math.floor(n*.75)));
     const lip=Math.max(lh,rh),lipY=pY(lip);
     s+=`<line x1="${pL}" y1="${lipY.toFixed(1)}" x2="${CW}" y2="${lipY.toFixed(1)}" stroke="#0f5fa8" stroke-width=".9" stroke-dasharray="3,2" opacity=".75"/>`;
-    s+=`<text x="${CW-2}" y="${(lipY-2).toFixed(1)}" text-anchor="end" font-size="6" fill="#0f5fa8" font-family="Chakra Petch,sans-serif" font-weight="600">LIP / PIVOT</text>`;
+    s+=`<text x="${CW-2}" y="${(lipY-2).toFixed(1)}" text-anchor="end" font-size="4.5" fill="#0f5fa8" font-family="Chakra Petch,sans-serif" font-weight="600">LIP / PIVOT</text>`;
     const hs=Math.floor(n*.78);
     const hTop=Math.max(...highs.slice(hs)),hBot=Math.min(...lows.slice(hs));
     const hsx=bx(hs),hex=bx(n-2);
     s+=`<rect x="${hsx}" y="${pY(hTop).toFixed(1)}" width="${(hex-hsx).toFixed(1)}" height="${(pY(hBot)-pY(hTop)).toFixed(1)}" fill="#0f5fa8" opacity=".08" rx="2"/>`;
-    s+=`<text x="${(+hsx+2).toFixed(1)}" y="${(pY(hTop)+9).toFixed(1)}" font-size="6" fill="#0f5fa8" font-family="Chakra Petch,sans-serif">HANDLE</text>`;
+    s+=`<text x="${(+hsx+2).toFixed(1)}" y="${(pY(hTop)+9).toFixed(1)}" font-size="4.5" fill="#0f5fa8" font-family="Chakra Petch,sans-serif">HANDLE</text>`;
   }
 
   if(patternKey==='DOUBLE_BOTTOM'){
@@ -880,13 +906,13 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
     const b2=Math.min(...lows.slice(Math.floor(n*.5),Math.floor(n*.75)));
     const neck=Math.max(...closes.slice(Math.floor(n*.38),Math.floor(n*.55)));
     const ny=pY(neck);
-    s+=`<line x1="${pL}" y1="${ny.toFixed(1)}" x2="${CW}" y2="${ny.toFixed(1)}" stroke="#10b981" stroke-width=".8" stroke-dasharray="3,2" opacity=".7"/>`;
-    s+=`<text x="${CW-2}" y="${(ny-2).toFixed(1)}" text-anchor="end" font-size="6" fill="#10b981" font-family="Chakra Petch,sans-serif" font-weight="600">NECKLINE</text>`;
+    s+=`<line x1="${pL}" y1="${ny.toFixed(1)}" x2="${CW}" y2="${ny.toFixed(1)}" stroke="#10b981" stroke-width=".55" stroke-dasharray="3,2" opacity=".7"/>`;
+    s+=`<text x="${CW-2}" y="${(ny-2).toFixed(1)}" text-anchor="end" font-size="4.5" fill="#10b981" font-family="Chakra Petch,sans-serif" font-weight="600">NECKLINE</text>`;
     const bx1=bx(Math.floor(n*.3)),bx2=bx(Math.floor(n*.62));
     [bx1,bx2].forEach((bxv,i)=>{
       const by=pY(i===0?b1:b2);
       s+=`<circle cx="${bxv}" cy="${by.toFixed(1)}" r="3.5" fill="#10b981" opacity=".55"/>`;
-      s+=`<text x="${(+bxv).toFixed(1)}" y="${(by+8).toFixed(1)}" text-anchor="middle" font-size="6" fill="#10b981" font-family="Chakra Petch,sans-serif">B${i+1}</text>`;
+      s+=`<text x="${(+bxv).toFixed(1)}" y="${(by+8).toFixed(1)}" text-anchor="middle" font-size="4.5" fill="#10b981" font-family="Chakra Petch,sans-serif">B${i+1}</text>`;
     });
     s+=`<line x1="${bx1}" y1="${pY(b1).toFixed(1)}" x2="${bx2}" y2="${pY(b2).toFixed(1)}" stroke="#10b981" stroke-width=".5" stroke-dasharray="2,2" opacity=".35"/>`;
   }
@@ -895,8 +921,8 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
   if(['BREAKDOWN','STAGE4','FAILED_BO'].includes(patternKey)){
     const resistPrice=Math.max(...closes.slice(0,Math.floor(n*.4)));
     const rY=pY(resistPrice);
-    s+=`<line x1="${pL}" y1="${rY.toFixed(1)}" x2="${CW}" y2="${rY.toFixed(1)}" stroke="#ef4444" stroke-width=".8" stroke-dasharray="3,2" opacity=".7"/>`;
-    s+=`<text x="${CW-2}" y="${(rY-2).toFixed(1)}" text-anchor="end" font-size="6" fill="#ef4444" font-family="Chakra Petch,sans-serif" font-weight="600">RESISTANCE</text>`;
+    s+=`<line x1="${pL}" y1="${rY.toFixed(1)}" x2="${CW}" y2="${rY.toFixed(1)}" stroke="#ef4444" stroke-width=".55" stroke-dasharray="3,2" opacity=".7"/>`;
+    s+=`<text x="${CW-2}" y="${(rY-2).toFixed(1)}" text-anchor="end" font-size="4.5" fill="#ef4444" font-family="Chakra Petch,sans-serif" font-weight="600">RESISTANCE</text>`;
     const currY=pY(closes[n-1]);
     s+=`<text x="${(CW-8).toFixed(1)}" y="${(currY+10).toFixed(1)}" font-size="11" fill="#ef4444" opacity=".65" text-anchor="middle">↓</text>`;
   }
@@ -905,10 +931,10 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
     let maxG=0,gb=Math.floor(n*.35);
     for(let i=1;i<n;i++){const g=ohlc[i-1].c/ohlc[i].o-1;if(g>maxG){maxG=g;gb=i;}}
     const gx=bx(gb),gy1=pY(ohlc[gb-1].c),gy2=pY(ohlc[gb].o);
-    s+=`<line x1="${(+gx-bw*1.2).toFixed(1)}" y1="${gy1.toFixed(1)}" x2="${(+gx+bw*1.2).toFixed(1)}" y2="${gy1.toFixed(1)}" stroke="#ef4444" stroke-width=".9" opacity=".85"/>`;
-    s+=`<line x1="${(+gx-bw*1.2).toFixed(1)}" y1="${gy2.toFixed(1)}" x2="${(+gx+bw*1.2).toFixed(1)}" y2="${gy2.toFixed(1)}" stroke="#ef4444" stroke-width=".9" opacity=".85"/>`;
+    s+=`<line x1="${(+gx-bw*1.2).toFixed(1)}" y1="${gy1.toFixed(1)}" x2="${(+gx+bw*1.2).toFixed(1)}" y2="${gy1.toFixed(1)}" stroke="#ef4444" stroke-width=".6" opacity=".75"/>`;
+    s+=`<line x1="${(+gx-bw*1.2).toFixed(1)}" y1="${gy2.toFixed(1)}" x2="${(+gx+bw*1.2).toFixed(1)}" y2="${gy2.toFixed(1)}" stroke="#ef4444" stroke-width=".6" opacity=".75"/>`;
     s+=`<line x1="${gx}" y1="${gy1.toFixed(1)}" x2="${gx}" y2="${gy2.toFixed(1)}" stroke="#ef4444" stroke-width=".6" stroke-dasharray="1,2" opacity=".6"/>`;
-    s+=`<text x="${(+gx+bw*1.4).toFixed(1)}" y="${((gy1+gy2)/2+3).toFixed(1)}" font-size="6" fill="#ef4444" font-family="Chakra Petch,sans-serif">GAP↓</text>`;
+    s+=`<text x="${(+gx+bw*1.4).toFixed(1)}" y="${((gy1+gy2)/2+3).toFixed(1)}" font-size="4.5" fill="#ef4444" font-family="Chakra Petch,sans-serif">GAP↓</text>`;
   }
 
   // ── CHOPPY ───────────────────────────────────────────────────────────────────
@@ -917,37 +943,37 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
     const dTop=Math.max(...highs.slice(ds,de)),dBot=Math.min(...lows.slice(ds,de));
     const dsx=bx(ds),dex=bx(de);
     s+=`<rect x="${dsx}" y="${pY(dTop).toFixed(1)}" width="${(dex-dsx).toFixed(1)}" height="${(pY(dBot)-pY(dTop)).toFixed(1)}" fill="#f59e0b" opacity=".06" rx="2"/>`;
-    s+=`<line x1="${dsx}" y1="${pY(dTop).toFixed(1)}" x2="${dex}" y2="${pY(dTop).toFixed(1)}" stroke="#f59e0b" stroke-width=".9" opacity=".8"/>`;
-    s+=`<line x1="${dsx}" y1="${pY(dBot).toFixed(1)}" x2="${dex}" y2="${pY(dBot).toFixed(1)}" stroke="#f59e0b" stroke-width=".9" opacity=".8"/>`;
-    s+=`<text x="${(+dsx+2).toFixed(1)}" y="${(pY(dTop)-2).toFixed(1)}" font-size="6" fill="#f59e0b" font-family="Chakra Petch,sans-serif" font-weight="600">BOX TOP</text>`;
-    s+=`<text x="${(+dsx+2).toFixed(1)}" y="${(pY(dBot)+8).toFixed(1)}" font-size="6" fill="#f59e0b" font-family="Chakra Petch,sans-serif">BOX FLOOR</text>`;
+    s+=`<line x1="${dsx}" y1="${pY(dTop).toFixed(1)}" x2="${dex}" y2="${pY(dTop).toFixed(1)}" stroke="#f59e0b" stroke-width=".6" opacity=".7"/>`;
+    s+=`<line x1="${dsx}" y1="${pY(dBot).toFixed(1)}" x2="${dex}" y2="${pY(dBot).toFixed(1)}" stroke="#f59e0b" stroke-width=".6" opacity=".7"/>`;
+    s+=`<text x="${(+dsx+2).toFixed(1)}" y="${(pY(dTop)-2).toFixed(1)}" font-size="4.5" fill="#f59e0b" font-family="Chakra Petch,sans-serif" font-weight="600">BOX TOP</text>`;
+    s+=`<text x="${(+dsx+2).toFixed(1)}" y="${(pY(dBot)+8).toFixed(1)}" font-size="4.5" fill="#f59e0b" font-family="Chakra Petch,sans-serif">BOX FLOOR</text>`;
   }
 
   if(patternKey==='200_BOUNCE'){
     const sma200v=calcSMA(closes,Math.min(200,n-1)),valid200=sma200v.filter(v=>v!==null);
     if(valid200.length>3){
       const s200y=pY(valid200[valid200.length-1]);
-      s+=`<line x1="${pL}" y1="${s200y.toFixed(1)}" x2="${CW}" y2="${s200y.toFixed(1)}" stroke="#dc2626" stroke-width=".8" stroke-dasharray="3,2" opacity=".5"/>`;
-      s+=`<text x="${pL+2}" y="${(s200y-2).toFixed(1)}" font-size="6" fill="#dc2626" font-family="Chakra Petch,sans-serif">200 SMA</text>`;
+      s+=`<line x1="${pL}" y1="${s200y.toFixed(1)}" x2="${CW}" y2="${s200y.toFixed(1)}" stroke="#dc2626" stroke-width=".55" stroke-dasharray="3,2" opacity=".5"/>`;
+      s+=`<text x="${pL+2}" y="${(s200y-2).toFixed(1)}" font-size="4.5" fill="#dc2626" font-family="Chakra Petch,sans-serif">200 SMA</text>`;
       const bx200=bx(Math.floor(n*.38));
       s+=`<circle cx="${bx200}" cy="${s200y.toFixed(1)}" r="4" fill="#3b82f6" opacity=".45"/>`;
-      s+=`<text x="${(+bx200+5).toFixed(1)}" y="${(s200y+4).toFixed(1)}" font-size="6" fill="#3b82f6" font-family="Chakra Petch,sans-serif">BOUNCE</text>`;
+      s+=`<text x="${(+bx200+5).toFixed(1)}" y="${(s200y+4).toFixed(1)}" font-size="4.5" fill="#3b82f6" font-family="Chakra Petch,sans-serif">BOUNCE</text>`;
     }
   }
 
   if(patternKey==='OB_BOUNCE'){
     const osY=pY(Math.min(...lows));
     s+=`<line x1="${pL}" y1="${osY.toFixed(1)}" x2="${CW}" y2="${osY.toFixed(1)}" stroke="#3b82f6" stroke-width=".7" stroke-dasharray="2,3" opacity=".5"/>`;
-    s+=`<text x="${pL+2}" y="${(osY-2).toFixed(1)}" font-size="6" fill="#3b82f6" font-family="Chakra Petch,sans-serif">OS ZONE / RSI&lt;30</text>`;
+    s+=`<text x="${pL+2}" y="${(osY-2).toFixed(1)}" font-size="4.5" fill="#3b82f6" font-family="Chakra Petch,sans-serif">OS ZONE / RSI&lt;30</text>`;
     const currY=pY(closes[n-1]);
-    s+=`<text x="${(CW-10).toFixed(1)}" y="${(currY-4).toFixed(1)}" font-size="10" fill="#3b82f6" opacity=".65">↑</text>`;
+    s+=`<text x="${(CW-10).toFixed(1)}" y="${(currY-4).toFixed(1)}" font-size="4.5" fill="#3b82f6" opacity=".65">↑</text>`;
   }
 
   if(patternKey==='SUPPORT'){
     const kSupp=Math.min(...lows.slice(Math.floor(n*.3),Math.floor(n*.7)));
     const ksY=pY(kSupp);
     s+=`<line x1="${pL}" y1="${ksY.toFixed(1)}" x2="${CW}" y2="${ksY.toFixed(1)}" stroke="#3b82f6" stroke-width=".9" stroke-dasharray="3,2" opacity=".7"/>`;
-    s+=`<text x="${CW-2}" y="${(ksY-2).toFixed(1)}" text-anchor="end" font-size="6" fill="#3b82f6" font-family="Chakra Petch,sans-serif" font-weight="600">KEY SUPPORT</text>`;
+    s+=`<text x="${CW-2}" y="${(ksY-2).toFixed(1)}" text-anchor="end" font-size="4.5" fill="#3b82f6" font-family="Chakra Petch,sans-serif" font-weight="600">KEY SUPPORT</text>`;
     const bxS=bx(Math.floor(n*.8));
     s+=`<circle cx="${bxS}" cy="${ksY.toFixed(1)}" r="3.5" fill="#3b82f6" opacity=".5"/>`;
   }
@@ -957,12 +983,12 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
     const sqTop=Math.max(...highs.slice(sqS,sqE)),sqBot=Math.min(...lows.slice(sqS,sqE));
     const sqsx=bx(sqS),sqex=bx(sqE);
     s+=`<rect x="${sqsx}" y="${pY(sqTop).toFixed(1)}" width="${(sqex-sqsx).toFixed(1)}" height="${(pY(sqBot)-pY(sqTop)).toFixed(1)}" fill="#8b5cf6" opacity=".1" rx="2"/>`;
-    s+=`<line x1="${sqsx}" y1="${pY(sqTop).toFixed(1)}" x2="${sqex}" y2="${pY(sqTop).toFixed(1)}" stroke="#8b5cf6" stroke-width=".7" opacity=".65"/>`;
-    s+=`<line x1="${sqsx}" y1="${pY(sqBot).toFixed(1)}" x2="${sqex}" y2="${pY(sqBot).toFixed(1)}" stroke="#8b5cf6" stroke-width=".7" opacity=".65"/>`;
-    s+=`<text x="${(+sqsx+2).toFixed(1)}" y="${(pY(sqTop)-2).toFixed(1)}" font-size="6" fill="#8b5cf6" font-family="Chakra Petch,sans-serif">BB SQUEEZE</text>`;
+    s+=`<line x1="${sqsx}" y1="${pY(sqTop).toFixed(1)}" x2="${sqex}" y2="${pY(sqTop).toFixed(1)}" stroke="#8b5cf6" stroke-width=".5" opacity=".55"/>`;
+    s+=`<line x1="${sqsx}" y1="${pY(sqBot).toFixed(1)}" x2="${sqex}" y2="${pY(sqBot).toFixed(1)}" stroke="#8b5cf6" stroke-width=".5" opacity=".55"/>`;
+    s+=`<text x="${(+sqsx+2).toFixed(1)}" y="${(pY(sqTop)-2).toFixed(1)}" font-size="4.5" fill="#8b5cf6" font-family="Chakra Petch,sans-serif">BB SQUEEZE</text>`;
     // Expansion arrow after squeeze
     const expX=bx(sqE+2);
-    s+=`<text x="${expX}" y="${(pY(Math.max(...highs.slice(sqE)))-2).toFixed(1)}" font-size="10" fill="#8b5cf6" opacity=".7">↑</text>`;
+    s+=`<text x="${expX}" y="${(pY(Math.max(...highs.slice(sqE)))-2).toFixed(1)}" font-size="4.5" fill="#8b5cf6" opacity=".7">↑</text>`;
   }
 
   // ── LONG TERM ───────────────────────────────────────────────────────────────
@@ -971,8 +997,8 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
     const sma50v=calcSMA(closes,Math.min(50,n-1)),v50=sma50v.filter(v=>v!==null);
     if(v50.length>3){
       const s50y=pY(v50[v50.length-1]);
-      s+=`<line x1="${pL}" y1="${s50y.toFixed(1)}" x2="${CW}" y2="${s50y.toFixed(1)}" stroke="#2563eb" stroke-width=".9" stroke-dasharray="2,2" opacity=".65"/>`;
-      s+=`<text x="${CW-2}" y="${(s50y-2).toFixed(1)}" text-anchor="end" font-size="6" fill="#2563eb" font-family="Chakra Petch,sans-serif" font-weight="600">50 SMA SUPPORT</text>`;
+      s+=`<line x1="${pL}" y1="${s50y.toFixed(1)}" x2="${CW}" y2="${s50y.toFixed(1)}" stroke="#2563eb" stroke-width=".55" stroke-dasharray="2,2" opacity=".65"/>`;
+      s+=`<text x="${CW-2}" y="${(s50y-2).toFixed(1)}" text-anchor="end" font-size="4.5" fill="#2563eb" font-family="Chakra Petch,sans-serif" font-weight="600">50 SMA SUPPORT</text>`;
       s+=`<circle cx="${bx(Math.floor(n*.65))}" cy="${s50y.toFixed(1)}" r="3.5" fill="#2563eb" opacity=".4"/>`;
     }
   }
@@ -981,7 +1007,7 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
     const aTop=Math.max(...highs.slice(as,ae)),aBot=Math.min(...lows.slice(as,ae));
     const asx=bx(as),aex=bx(ae);
     s+=`<rect x="${asx}" y="${pY(aTop).toFixed(1)}" width="${(aex-asx).toFixed(1)}" height="${(pY(aBot)-pY(aTop)).toFixed(1)}" fill="#8b5cf6" opacity=".07" rx="2"/>`;
-    s+=`<text x="${(+asx+3).toFixed(1)}" y="${(pY(aTop)-2).toFixed(1)}" font-size="6" fill="#8b5cf6" font-family="Chakra Petch,sans-serif" font-weight="600">ACCUM ZONE</text>`;
+    s+=`<text x="${(+asx+3).toFixed(1)}" y="${(pY(aTop)-2).toFixed(1)}" font-size="4.5" fill="#8b5cf6" font-family="Chakra Petch,sans-serif" font-weight="600">ACCUM ZONE</text>`;
   }
   if(patternKey==='INDUSTRY_LEADER') pivotLine('#0f5fa8','SECTOR LEADER');
 
@@ -1020,7 +1046,7 @@ function makeChart(ohlc,rsLine,patternKey){
     const cx=pL+i*bw+bw*.175,mx=cx+cw/2;
     const g=d.c>=d.o,col=g?'#16a34a':'#dc2626';
     const bT=pY(Math.max(d.o,d.c)),bB=pY(Math.min(d.o,d.c)),bH=Math.max(1,bB-bT);
-    s+=`<line x1="${mx.toFixed(1)}" y1="${pY(d.h).toFixed(1)}" x2="${mx.toFixed(1)}" y2="${pY(d.l).toFixed(1)}" stroke="${col}" stroke-width=".75"/>`;
+    s+=`<line x1="${mx.toFixed(1)}" y1="${pY(d.h).toFixed(1)}" x2="${mx.toFixed(1)}" y2="${pY(d.l).toFixed(1)}" stroke="${col}" stroke-width=".55"/>`;
     s+=`<rect x="${cx.toFixed(1)}" y="${bT.toFixed(1)}" width="${cw.toFixed(1)}" height="${bH.toFixed(1)}" fill="${col}"/>`;
   });
   s+=maPath(sma200,'#dc2626','.6','3,2');
@@ -1034,30 +1060,30 @@ function makeChart(ohlc,rsLine,patternKey){
   const lx=W-pR+2;
   s+=`<line x1="${pL}" y1="${ly.toFixed(1)}" x2="${W-pR+1}" y2="${ly.toFixed(1)}" stroke="#94a3b8" stroke-dasharray="2,3" stroke-width=".7"/>`;
   s+=`<rect x="${lx}" y="${(ly-8).toFixed(1)}" width="${pR-4}" height="15" fill="#1e293b" rx="2"/>`;
-  s+=`<text x="${(lx+(pR-4)/2).toFixed(1)}" y="${(ly+3).toFixed(1)}" text-anchor="middle" fill="#e2e8f0" font-size="9" font-family="JetBrains Mono,monospace" font-weight="600">${lbl}</text>`;
+  s+=`<text x="${(lx+(pR-4)/2).toFixed(1)}" y="${(ly+3).toFixed(1)}" text-anchor="middle" fill="#e2e8f0" font-size="4.5" font-family="JetBrains Mono,monospace" font-weight="600">${lbl}</text>`;
   if(hasRS){
     const ry0=PH+GAP,ryT=ry0+4,ryB=ry0+RSH-2;
-    s+=`<line x1="${pL}" y1="${ry0}" x2="${W-pR}" y2="${ry0}" stroke="#dde2ea" stroke-width=".5"/>`;
-    s+=`<text x="${pL+1}" y="${ry0+8}" font-size="6.5" fill="#94a3b8" font-family="sans-serif">RS vs SPX</text>`;
+    s+=`<line x1="${pL}" y1="${ry0}" x2="${W-pR}" y2="${ry0}" stroke="#e2e8f0" stroke-width=".6"/>`;
+    s+=`<text x="${pL+1}" y="${ry0+8}" font-size="5" fill="#64748b" font-family="JetBrains Mono,monospace" letter-spacing=".4">RS vs SPX</text>`;
     const rMin=Math.min(...rsLine),rMax=Math.max(...rsLine),rRng=rMax-rMin||.01;
     const rY=v=>ryT+(1-(v-rMin)/rRng)*(ryB-ryT);
     const step=(W-pL-pR)/rsLine.length;
     const midY=rY(rMin+rRng*.5);
-    s+=`<line x1="${pL}" y1="${midY.toFixed(1)}" x2="${W-pR}" y2="${midY.toFixed(1)}" stroke="#dde2ea" stroke-width=".4" stroke-dasharray="2,3"/>`;
+    s+=`<line x1="${pL}" y1="${midY.toFixed(1)}" x2="${W-pR}" y2="${midY.toFixed(1)}" stroke="#cbd5e1" stroke-width=".4" stroke-dasharray="2,3"/>`;
     let rp='';
     rsLine.forEach((v,i)=>{
       const x=(pL+i*step+step*.5).toFixed(1),y=rY(v).toFixed(1);
       rp+=i===0?`M${x},${y}`:`L${x},${y}`;
     });
-    s+=`<path d="${rp}" fill="none" stroke="#10b981" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    s+=`<path d="${rp}" fill="none" stroke="#059669" stroke-width="0.7" stroke-linejoin="round" stroke-linecap="round"/>`;
     const peak=Math.max(...rsLine.slice(0,Math.max(1,rsLine.length-2)));
     if(rsLine[rsLine.length-1]>=peak*.998)
-      s+=`<text x="${W-pR-2}" y="${ry0+8}" text-anchor="end" font-size="7" fill="#10b981" font-weight="600" font-family="sans-serif">★ new high</text>`;
+      s+=`<text x="${W-pR-2}" y="${ry0+8}" text-anchor="end" font-size="5" fill="#059669" font-weight="600" font-family="JetBrains Mono,monospace" opacity=".8">★ new high</text>`;
   }
   if(hasVol){
     const vy0=PH+(hasRS?GAP+RSH:0)+GAP,vyT=vy0+4,vyB=vy0+VH-2;
-    s+=`<line x1="${pL}" y1="${vy0}" x2="${W-pR}" y2="${vy0}" stroke="#dde2ea" stroke-width=".5"/>`;
-    s+=`<text x="${pL+1}" y="${vy0+8}" font-size="6.5" fill="#94a3b8" font-family="sans-serif">VOL</text>`;
+    s+=`<line x1="${pL}" y1="${vy0}" x2="${W-pR}" y2="${vy0}" stroke="#e2e8f0" stroke-width=".6"/>`;
+    s+=`<text x="${pL+1}" y="${vy0+8}" font-size="5" fill="#64748b" font-family="JetBrains Mono,monospace" letter-spacing=".4">VOL</text>`;
     const maxV=Math.max(...vols)||1,vY=v=>vyT+(1-v/maxV)*(vyB-vyT);
     const vPer=Math.max(5,Math.min(50,Math.floor(n*.8)));
     const volSMA=calcSMA(vols,vPer);
@@ -1084,14 +1110,14 @@ function makeChart(ohlc,rsLine,patternKey){
       const x=(pL+i*bw+bw*.5).toFixed(1),y=vY(v).toFixed(1);
       ap+=ap?`L${x},${y}`:`M${x},${y}`;
     });
-    if(ap)s+=`<path d="${ap}" fill="none" stroke="#f97316" stroke-width=".9" stroke-dasharray="2,2"/>`;
+    if(ap)s+=`<path d="${ap}" fill="none" stroke="#f97316" stroke-width=".55" stroke-dasharray="2,2"/>`;
     const lx2=W-pR+4,lby=vy0+7;
     s+=`<circle cx="${lx2+3}" cy="${lby}" r="3" fill="#0d9488"/>`;
-    s+=`<text x="${lx2+8}" y="${lby+3}" font-size="6" fill="#0d9488" font-family="sans-serif">PP</text>`;
+    s+=`<text x="${lx2+8}" y="${lby+3}" font-size="4.5" fill="#0d9488" font-family="sans-serif">PP</text>`;
     s+=`<circle cx="${lx2+3}" cy="${lby+12}" r="3" fill="#b0b8c4"/>`;
-    s+=`<text x="${lx2+8}" y="${lby+15}" font-size="6" fill="#94a3b8" font-family="sans-serif">Dry</text>`;
+    s+=`<text x="${lx2+8}" y="${lby+15}" font-size="4.5" fill="#94a3b8" font-family="sans-serif">Dry</text>`;
   }
-  return`<svg width="100%" viewBox="0 0 ${W} ${totalH}" style="display:block;overflow:visible;background:#f8fafc">${s}</svg>`;
+  return`<svg width="100%" viewBox="0 0 ${W} ${totalH}" style="display:block;overflow:visible;background:#ffffff;border-radius:0 0 6px 6px">${s}</svg>`;
 }
 
 // ── MOCK DATA ─────────────────────────────────────────────────────────────────
@@ -1322,15 +1348,15 @@ function renderRRG(){
   // Axes
   s+=`<line x1="${cx}" y1="0" x2="${cx}" y2="${H}" stroke="rgba(255,255,255,.1)" stroke-width="1"/>`;
   s+=`<line x1="0" y1="${cy}" x2="${W}" y2="${cy}" stroke="rgba(255,255,255,.1)" stroke-width="1"/>`;
-  s+=`<text x="${cx+4}" y="${cy-4}" font-size="8" fill="#94a3b8" font-family="JetBrains Mono">100.0</text>`;
+  s+=`<text x="${cx+4}" y="${cy-4}" font-size="5.5" fill="#94a3b8" font-family="JetBrains Mono">100.0</text>`;
 
   // Axis labels
-  s+=`<text x="${W-4}" y="${cy-5}" text-anchor="end" font-size="8" fill="#94a3b8" font-family="Chakra Petch">RS-Ratio →</text>`;
-  s+=`<text x="${cx+5}" y="22" font-size="8" fill="#94a3b8" font-family="Chakra Petch">↑ RS-Mom</text>`;
+  s+=`<text x="${W-4}" y="${cy-5}" text-anchor="end" font-size="5.5" fill="#94a3b8" font-family="Chakra Petch">RS-Ratio →</text>`;
+  s+=`<text x="${cx+5}" y="22" font-size="5.5" fill="#94a3b8" font-family="Chakra Petch">↑ RS-Mom</text>`;
 
-  // Sectors
+  // Sectors — use rrg per timeframe, fall back to performance-derived position
   const quadColor=sec=>{
-    const pos=sec.rrg[ACTIVE_TF]||sec.rrg.d7;
+    const pos=sec.rrg&&sec.rrg[ACTIVE_TF]?sec.rrg[ACTIVE_TF]:(sec.rrg&&sec.rrg.d7?sec.rrg.d7:{ratio:100,mom:100});
     const {ratio,mom}=pos;
     if(ratio>=100&&mom>=100)return'#10b981';
     if(ratio>=100&&mom<100) return'#f59e0b';
@@ -1338,13 +1364,29 @@ function renderRRG(){
     return'#6366f1';
   };
 
+  // Performance-derived RRG fallback (when real rrg values are all near 100)
+  function getRRGPos(sec){
+    if(sec.rrg&&sec.rrg[ACTIVE_TF]){
+      const pos=sec.rrg[ACTIVE_TF];
+      // Check if values are meaningfully different from 100
+      if(Math.abs(pos.ratio-100)>0.3||Math.abs(pos.mom-100)>0.3) return pos;
+    }
+    // Derive from performance data
+    const TF_KEY={d1:'d1',d7:'d7',d30:'d30',d90:'d90',d180:'d180',d365:'d365'};
+    const perf=sec[TF_KEY[ACTIVE_TF]]||0;
+    const prevTF={d1:'d7',d7:'d30',d30:'d90',d90:'d180',d180:'d365',d365:'d365'}[ACTIVE_TF];
+    const prevPerf=sec[prevTF]||0;
+    const ratio=100+perf*0.8;
+    const mom=100+(perf-prevPerf)*1.5;
+    return{ratio:Math.max(93,Math.min(107,ratio)),mom:Math.max(93,Math.min(107,mom))};
+  }
+
   DATA.sectors.forEach(sec=>{
-    const pos=sec.rrg[ACTIVE_TF]||sec.rrg.d7;
+    const pos=getRRGPos(sec);
     const {ratio,mom}=pos;
-    // Trail: prior timeframe position for context
     const tfOrder=['d1','d7','d30','d90','d180','d365'];
     const prevTF=tfOrder[Math.max(0,tfOrder.indexOf(ACTIVE_TF)-1)];
-    const prev=sec.rrg[prevTF]||pos;
+    const prev=sec.rrg&&sec.rrg[prevTF]?sec.rrg[prevTF]:getRRGPos({...sec,_tf:prevTF});
     const x=cx+(ratio-100)*scale;
     const y=cy-(mom-100)*scale;
     const tx=cx+(prev.ratio-100)*scale;
@@ -1354,7 +1396,7 @@ function renderRRG(){
     s+=`<circle cx="${tx.toFixed(1)}" cy="${ty.toFixed(1)}" r="3" fill="${col}" opacity=".25"/>`;
     s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="${col}" opacity=".9"/>`;
     s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="none" stroke="${col}" stroke-width="1" opacity=".4"/>`;
-    s+=`<text x="${(x+10).toFixed(1)}" y="${(y+3).toFixed(1)}" font-size="9" fill="#0f172a" font-family="Chakra Petch,sans-serif" font-weight="600">${sec.sym}</text>`;
+    s+=`<text x="${(x+10).toFixed(1)}" y="${(y+3).toFixed(1)}" font-size="6" fill="#0f172a" font-family="Chakra Petch,sans-serif" font-weight="600">${sec.sym}</text>`;
   });
 
   svg.innerHTML=s;
@@ -1363,70 +1405,41 @@ function renderRRG(){
 // ── PANE 3: SCREENER ─────────────────────────────────────────────────────────
 const STRATEGIES = {
   bullish: [
-    { key:'ALL',       label:'All Setups',            cls:'bull-strat' },
-    { key:'VCP',       label:'VCP',                   cls:'bull-strat' },
-    { key:'HTF',       label:'High Tight Flag',       cls:'bull-strat' },
-    { key:'EP',        label:'Episodic Pivot / EGU',  cls:'bull-strat' },
-    { key:'BASE',      label:'Base Breakout',         cls:'bull-strat' },
-    { key:'STAGE2',    label:'Stage 2 Breakout',      cls:'bull-strat' },
-    { key:'PP',        label:'Pocket Pivot',          cls:'bull-strat' },
-    { key:'EMA_PULL',  label:'EMA Pullback',          cls:'bull-strat' },
-    { key:'NR7',       label:'Inside Day / NR7',      cls:'bull-strat' },
-    { key:'RS_HIGH',   label:'RS Line New High',      cls:'bull-strat' },
+    { key:'ALL',       label:'All',              cls:'bull-strat' },
+    { key:'VCP',       label:'VCP',              cls:'bull-strat' },
+    { key:'EP',        label:'Episodic Pivot',   cls:'bull-strat' },
+    { key:'STAGE1_BO', label:'Stage 1 → 2',      cls:'bull-strat' },
+    { key:'STAGE2',    label:'Stage 2',          cls:'bull-strat' },
+    { key:'EMA_PULL',  label:'EMA Pullback',     cls:'bull-strat' },
   ],
   bearish: [
-    { key:'ALL',        label:'All Setups',           cls:'bear-strat' },
-    { key:'BREAKDOWN',  label:'Breakdown',            cls:'bear-strat' },
-    { key:'STAGE4',     label:'Stage 4 Breakdown',    cls:'bear-strat' },
-    { key:'FAILED_BO',  label:'Failed Breakout Short',cls:'bear-strat' },
-    { key:'SHORT_EP',   label:'Short Episodic Pivot', cls:'bear-strat' },
-    { key:'DIST_TOP',   label:'Distribution Top',     cls:'bear-strat' },
+    { key:'ALL',    label:'All',             cls:'bear-strat' },
+    { key:'STAGE4', label:'Stage 4 Avoid',  cls:'bear-strat' },
   ],
   choppy: [
-    { key:'ALL',        label:'All Setups',           cls:'chop-strat' },
-    { key:'DARVAS',     label:'Darvas Box',           cls:'chop-strat' },
-    { key:'200_BOUNCE', label:'200MA Bounce',         cls:'chop-strat' },
-    { key:'OB_BOUNCE',  label:'Oversold Bounce',      cls:'chop-strat' },
-    { key:'SUPPORT',    label:'Support Bounce',       cls:'chop-strat' },
-    { key:'VOL_SQUEEZE',label:'Low Vol Squeeze',      cls:'chop-strat' },
+    { key:'ALL',    label:'All',             cls:'chop-strat' },
+    { key:'STAGE4', label:'Stage 4 Avoid',  cls:'chop-strat' },
   ],
 };
 
 const STRAT_LABELS = {
-  // Bullish
-  VCP:         'VCP',
-  HTF:         'High Tight Flag',
-  EP:          'Episodic Pivot / EGU',
-  BASE:        'Base Breakout',
-  STAGE2:      'Stage 2 Breakout',
-  PP:          'Pocket Pivot',
-  EMA_PULL:    'EMA Pullback',
-  NR7:         'Inside Day / NR7',
-  RS_HIGH:     'RS Line New High',
-  // Bearish
-  BREAKDOWN:   'Breakdown',
-  STAGE4:      'Stage 4 Breakdown',
-  FAILED_BO:   'Failed Breakout Short',
-  SHORT_EP:    'Short Episodic Pivot',
-  DIST_TOP:    'Distribution Top',
-  // Choppy
-  DARVAS:      'Darvas Box',
-  '200_BOUNCE':'200MA Bounce',
-  OB_BOUNCE:   'Oversold Bounce',
-  SUPPORT:     'Support Bounce',
-  VOL_SQUEEZE: 'Low Vol Squeeze',
-  // Long term
+  VCP:              'VCP',
+  EP:               'Episodic Pivot',
+  STAGE1_BO:        'Stage 1 → 2 Breakout',
+  STAGE2:           'Stage 2 Breakout',
+  EMA_PULL:         'EMA Pullback',
+  STAGE4:           'Stage 4 — Avoid',
   CANSLIM:          'CANSLIM',
   NH_EARNINGS:      'New Highs + Earnings',
-  LEADER_PULLBACK:  'Market Leader Pullback',
+  LEADER_PULLBACK:  'Leader Pullback',
   EMERGING:         'Emerging Leader',
-  INST_ACCUM:       'Institutional Accumulation',
-  INDUSTRY_LEADER:  'Industry Group Leader',
+  INST_ACCUM:       'Institutional Accum.',
+  INDUSTRY_LEADER:  'Industry Leader',
 };
 
 // Strategy badge color class
 function stratClass(key){
-  const bull=['VCP','HTF','EP','BASE','PP','EMA_PULL','GC'];
+  const bull=['VCP','HTF','EP','BASE','PP','EMA_PULL','GC','STAGE1_BO','STAGE2'];
   const bear=['BREAKDOWN','SHORT_EP','DC','DEAD_CAT'];
   if(bull.includes(key))return'VCP';   // reuse green style
   if(bear.includes(key))return'BEAR';
@@ -1479,19 +1492,134 @@ function switchMC(mc){
   autoSuggestMode();
 }
 
+
+// Long-term chart — 50, 100, 200 SMA + RS panel + Volume — dark terminal theme
+function makeLTChart(ohlc, rsLine){
+  const W=300;
+  if(!ohlc||!ohlc.length)return'';
+  const n=ohlc.length;
+  const closes=ohlc.map(d=>d.c),vols=ohlc.map(d=>d.v||0);
+  const hasVol=vols.some(v=>v>0);
+  const hasRS=Array.isArray(rsLine)&&rsLine.length>1;
+  const PH=108,RSH=26,VH=28,GAP=4;
+  const pL=4,pR=58,pT=4,pB=4;
+  const totalH=PH+(hasRS?GAP+RSH:0)+(hasVol?GAP+VH:0)+4;
+  const bw=(W-pL-pR)/n,cw=Math.max(1,bw*.65);
+  const allP=ohlc.flatMap(d=>[d.h,d.l]);
+  const lo=Math.min(...allP),hi=Math.max(...allP),rng=hi-lo||1;
+  const pY=v=>pT+(1-(v-lo)/rng)*(PH-pT-pB);
+  const sma50=calcSMA(closes,50);
+  const sma100=calcSMA(closes,100);
+  const sma200=calcSMA(closes,200);
+  function maPath(ma,color,sw,dash){
+    let d='',first=true;
+    ma.forEach((v,i)=>{
+      if(v===null)return;
+      const x=(pL+i*bw+bw*.5).toFixed(1),y=pY(v).toFixed(1);
+      d+=first?`M${x},${y}`:`L${x},${y}`;first=false;
+    });
+    if(!d)return'';
+    const da=dash?`stroke-dasharray="${dash}"`:'';
+    return`<path d="${d}" fill="none" stroke="${color}" stroke-width="${sw}" ${da} stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+  let s='';
+  // Subtle grid lines on price pane
+  [.25,.5,.75].forEach(t=>{
+    const gy=(pT+(1-t)*(PH-pT-pB)).toFixed(1);
+    s+=`<line x1="${pL}" y1="${gy}" x2="${W-pR}" y2="${gy}" stroke="rgba(0,0,0,.04)" stroke-width=".5"/>`;
+  });
+  // Candles
+  ohlc.forEach((d,i)=>{
+    const cx=pL+i*bw+bw*.175,mx=cx+cw/2;
+    const g=d.c>=d.o;
+    const col=g?'#16a34a':'#dc2626';
+    const wickCol=g?'#15803d':'#b91c1c';
+    const bT=pY(Math.max(d.o,d.c)),bB=pY(Math.min(d.o,d.c)),bH=Math.max(.8,bB-bT);
+    s+=`<line x1="${mx.toFixed(1)}" y1="${pY(d.h).toFixed(1)}" x2="${mx.toFixed(1)}" y2="${pY(d.l).toFixed(1)}" stroke="${wickCol}" stroke-width=".5" opacity=".8"/>`;
+    s+=`<rect x="${cx.toFixed(1)}" y="${bT.toFixed(1)}" width="${cw.toFixed(1)}" height="${bH.toFixed(1)}" fill="${col}" opacity=".9"/>`;
+  });
+  // SMAs — drawn back-to-front so 50 sits on top
+  s+=maPath(sma200,'#dc2626','.75','3,2');   // red dashed
+  s+=maPath(sma100,'#d97706','.65','2,2');   // amber dashed
+  s+=maPath(sma50, '#1d4ed8','1.0','');      // blue solid
+  // Price label
+  const lc=ohlc[n-1].c,ly=pY(lc);
+  const lbl=lc>=1000?lc.toFixed(0):lc>=10?lc.toFixed(2):lc.toFixed(3);
+  const lx=W-pR+2;
+  s+=`<line x1="${pL}" y1="${ly.toFixed(1)}" x2="${W-pR+1}" y2="${ly.toFixed(1)}" stroke="rgba(100,116,139,.3)" stroke-dasharray="2,3" stroke-width=".6"/>`;
+  s+=`<rect x="${lx}" y="${(ly-7.5).toFixed(1)}" width="${pR-4}" height="14" fill="#1e3a8a" rx="2"/>`;
+  s+=`<text x="${(lx+(pR-4)/2).toFixed(1)}" y="${(ly+2.5).toFixed(1)}" text-anchor="middle" fill="#eff6ff" font-size="4.5" font-family="JetBrains Mono,monospace" font-weight="600">${lbl}</text>`;
+  // SMA labels (right side)
+  const labelMA=(ma,color,tag)=>{
+    const v=ma.filter(x=>x!==null).slice(-1)[0];
+    if(!v)return'';
+    const y=pY(v);
+    return`<text x="${(W-pR+3).toFixed(1)}" y="${(y+2.5).toFixed(1)}" font-size="4" fill="${color}" font-family="JetBrains Mono,monospace" font-weight="500" opacity=".9">${tag}</text>`;
+  };
+  s+=labelMA(sma50,'#1d4ed8','50');
+  s+=labelMA(sma100,'#d97706','100');
+  s+=labelMA(sma200,'#dc2626','200');
+  // ── RS PANEL ──────────────────────────────────────────────────────────────
+  if(hasRS){
+    const ry0=PH+GAP,ryT=ry0+4,ryB=ry0+RSH-2;
+    s+=`<line x1="${pL}" y1="${ry0}" x2="${W-pR}" y2="${ry0}" stroke="#e2e8f0" stroke-width=".6"/>`;
+    s+=`<text x="${pL+1}" y="${ry0+7}" font-size="4" fill="#64748b" font-family="JetBrains Mono,monospace" letter-spacing=".5">RS vs SPX</text>`;
+    const rMin=Math.min(...rsLine),rMax=Math.max(...rsLine),rRng=rMax-rMin||.01;
+    const rY=v=>ryT+(1-(v-rMin)/rRng)*(ryB-ryT);
+    const step=(W-pL-pR)/rsLine.length;
+    const midY=rY(rMin+rRng*.5);
+    s+=`<line x1="${pL}" y1="${midY.toFixed(1)}" x2="${W-pR}" y2="${midY.toFixed(1)}" stroke="#cbd5e1" stroke-width=".4" stroke-dasharray="2,3"/>`;
+    // RS fill under line
+    let rArea=`M${(pL+step*.5).toFixed(1)},${ryB.toFixed(1)}`;
+    rsLine.forEach((v,i)=>{rArea+=`L${(pL+i*step+step*.5).toFixed(1)},${rY(v).toFixed(1)}`;});
+    rArea+=`L${(pL+(rsLine.length-1)*step+step*.5).toFixed(1)},${ryB.toFixed(1)}Z`;
+    s+=`<path d="${rArea}" fill="rgba(5,150,105,.08)"/>`;
+    // RS line
+    let rp='';
+    rsLine.forEach((v,i)=>{const x=(pL+i*step+step*.5).toFixed(1),y=rY(v).toFixed(1);rp+=i===0?`M${x},${y}`:`L${x},${y}`;});
+    s+=`<path d="${rp}" fill="none" stroke="#059669" stroke-width=".9" stroke-linejoin="round" stroke-linecap="round"/>`;
+    // New high annotation
+    const peak=Math.max(...rsLine.slice(0,Math.max(1,rsLine.length-2)));
+    if(rsLine[rsLine.length-1]>=peak*.998)
+      s+=`<text x="${W-pR-2}" y="${ry0+7}" text-anchor="end" font-size="4" fill="#059669" font-weight="600" font-family="JetBrains Mono,monospace" opacity=".85">★ RS NEW HIGH</text>`;
+  }
+  // ── VOLUME PANEL ──────────────────────────────────────────────────────────
+  if(hasVol){
+    const vy0=PH+(hasRS?GAP+RSH:0)+GAP,vyT=vy0+4,vyB=vy0+VH-2;
+    const maxV=Math.max(...vols.filter(v=>v>0))||1;
+    const avgV=vols.filter(v=>v>0).reduce((a,b)=>a+b,0)/vols.filter(v=>v>0).length||1;
+    s+=`<line x1="${pL}" y1="${vy0}" x2="${W-pR}" y2="${vy0}" stroke="#e2e8f0" stroke-width=".6"/>`;
+    s+=`<text x="${pL+1}" y="${vy0+7}" font-size="4" fill="#64748b" font-family="JetBrains Mono,monospace" letter-spacing=".5">VOL</text>`;
+    const vY=v=>vyT+(1-v/maxV)*(vyB-vyT);
+    ohlc.forEach((d,i)=>{
+      if(!d.v)return;
+      const up=d.c>=d.o;
+      const col=!up?'rgba(220,38,38,.5)':(d.v>avgV*1.5?'rgba(29,78,216,.55)':'rgba(22,163,74,.45)');
+      const vx=(pL+i*bw+bw*.1).toFixed(1),vbw=Math.max(1,cw*1.05).toFixed(1);
+      const bt=vY(d.v).toFixed(1),bh=Math.max(.8,vyB-vY(d.v)).toFixed(1);
+      s+=`<rect x="${vx}" y="${bt}" width="${vbw}" height="${bh}" fill="${col}"/>`;
+    });
+    // Avg volume line
+    const vPer=Math.max(5,Math.min(50,Math.floor(n*.8)));
+    const volSMA=calcSMA(vols,vPer);
+    let ap='';
+    volSMA.forEach((v,i)=>{if(v===null)return;const x=(pL+i*bw+bw*.5).toFixed(1),y=vY(v).toFixed(1);ap+=ap?`L${x},${y}`:`M${x},${y}`;});
+    if(ap)s+=`<path d="${ap}" fill="none" stroke="rgba(217,119,6,.55)" stroke-width=".55" stroke-dasharray="2,2"/>`;
+  }
+  return`<svg width="100%" viewBox="0 0 ${W} ${totalH}" style="display:block;overflow:visible;background:#ffffff;border-radius:0 0 6px 6px">${s}</svg>`;
+}
+
 function renderScreenerGrid(){
   if(ACTIVE_MODE==='lt'){ renderLongTerm(); return; }
   renderRegimeWarning();
-  renderSectorFilter();
+
   const dataKey={bullish:'swing',bearish:'bearish',choppy:'choppy'}[ACTIVE_MC]||'swing';
   let all=DATA[dataKey]||[];
   // Sector filter
   if(ACTIVE_SECTOR==='LEADING'){
     const leading=getLeadingSectors();
     const sectorETFs={'Technology':'XLK','Communication':'XLC','Financials':'XLF','Health Care':'XLV','Healthcare':'XLV','Industrials':'XLI','Consumer':'XLY','Energy':'XLE','Materials':'XLB','Real Estate':'XLRE','Utilities':'XLU','Biotech':'XBI','Commodities':'GLD','Staples':'XLP','Telecom':'XLC'};
-    all=all.filter(s=>leading.includes(sectorETFs[s.sector]||''));
   } else if(ACTIVE_SECTOR!=='ALL'){
-    all=all.filter(s=>s.sector===ACTIVE_SECTOR);
   }
   const filtered=ACTIVE_STRAT==='ALL'?all:all.filter(s=>s.strategy===ACTIVE_STRAT);
   const label={bullish:'Bullish',bearish:'Bearish',choppy:'Choppy'}[ACTIVE_MC];
@@ -1500,8 +1628,8 @@ function renderScreenerGrid(){
     `${filtered.length} setups · ${label} · ${stratLabel} · Ranked by RS · US + Canada`;
   const grid=document.getElementById('screener-grid');
   grid.innerHTML=filtered.map((s,idx)=>{
-    const ohlc=shapeOHLC(s.ticker,s.strategy,60);
-    const rs=mockRSLine(ohlc);
+    const ohlc=getChartOHLC(s,false);
+    const rs=s.rs_line&&s.rs_line.length>1?s.rs_line:mockRSLine(ohlc);
     const chartId=`chart-${s.ticker}-${idx}-${ACTIVE_MC}`;
     const sfWarn=s.sf>15;
     const badgeCls=ACTIVE_MC==='bearish'?'BEAR':ACTIVE_MC==='choppy'?'PP':'VCP';
@@ -1553,10 +1681,15 @@ function renderScreenerGrid(){
 }
 
 function switchChart2(ticker,idx,mode,mc){
-  const trend=mc==='bearish'?-0.4:mc==='choppy'?0.05:0.4;
-  const ohlc=mode==='weekly'?mockOHLC(ticker,52,trend,0.024):mockOHLC(ticker,60,trend);
-  const rs=mockRSLine(ohlc);
-  document.getElementById(`chart-${ticker}-${idx}-${mc}`).innerHTML=makeChart(ohlc,rs);
+  const dataKey={bullish:'swing',bearish:'bearish',choppy:'choppy'}[mc]||'swing';
+  const allStocks=[...(DATA[dataKey]||[]),...(DATA.longterm||[])];
+  const stock=allStocks.find(s=>s.ticker===ticker);
+  const realChart=CHART_CACHE[ticker]||(stock&&stock.chart&&stock.chart.length>=15?stock.chart:null);
+  const ohlc=realChart
+    ?(mode==='weekly'?dailyToWeekly(realChart):realChart)
+    :(mode==='weekly'?dailyToWeekly(shapeOHLC(ticker,stock?.strategy||'BASE',60)):shapeOHLC(ticker,stock?.strategy||'BASE',60));
+  const rs=stock&&stock.rs_line&&stock.rs_line.length>1?stock.rs_line:mockRSLine(ohlc);
+  document.getElementById(`chart-${ticker}-${idx}-${mc}`).innerHTML=makeChart(ohlc,rs,stock?.strategy);
   document.getElementById(`btn-d-${ticker}-${idx}-${mc}`).classList.toggle('active',mode==='daily');
   document.getElementById(`btn-w-${ticker}-${idx}-${mc}`).classList.toggle('active',mode==='weekly');
 }
@@ -1589,8 +1722,8 @@ function renderLongTerm(){
     `${filtered.length} setups · CANSLIM methodology · ${STRAT_LABELS[ACTIVE_STRAT]||'All Sub-Categories'} · US + Canada`;
 
   grid.innerHTML=filtered.map((s,idx)=>{
-    const ohlc=shapeOHLC(s.ticker,s.strategy||'NH_EARNINGS',60);
-    const rs=mockRSLine(ohlc);
+    const ohlc=getChartOHLC(s,false);
+    const rs=s.rs_line&&s.rs_line.length>1?s.rs_line:mockRSLine(ohlc);
     const chartId=`lt-chart-${s.ticker}-${idx}`;
     const subLabel=STRAT_LABELS[s.strategy]||s.strategy;
     return`<div class="scard canslim-card">
@@ -1618,14 +1751,13 @@ function renderLongTerm(){
         <button class="ct-btn" onclick="switchLTChart('${s.ticker}',${idx},'weekly')" id="lt-btn-w-${s.ticker}-${idx}">Weekly</button>
       </div>
       <div class="chart-indicators">
-        <span class="ci e9"><b></b>9 EMA</span>
-        <span class="ci e21"><b></b>21 EMA</span>
         <span class="ci s50"><b></b>50 SMA</span>
+        <span style="font-size:8px;color:#d97706;margin-left:4px;display:flex;align-items:center;gap:3px"><b style="display:inline-block;width:10px;height:1.5px;background:#d97706;margin-top:1px;border-radius:1px"></b>100 SMA</span>
         <span class="ci s200"><b></b>200 SMA</span>
-        <span style="font-size:8px;color:#10b981;margin-left:4px">· RS</span>
-        <span style="font-size:8px;color:#0d9488;margin-left:2px">· Vol</span>
+        <span style="font-size:8px;color:#059669;margin-left:4px;display:flex;align-items:center;gap:3px"><b style="display:inline-block;width:10px;height:1.5px;background:#059669;margin-top:1px;border-radius:1px"></b>RS</span>
+        <span style="font-size:8px;color:var(--text3);margin-left:2px">· Vol</span>
       </div>
-      <div class="scard-chart" id="${chartId}">${makeChart(ohlc,rs,s.strategy||"NH_EARNINGS")}</div>
+      <div class="scard-chart" id="${chartId}">${makeLTChart(ohlc,rs)}</div>
     </div>`;
   }).join('') || '<div style="color:var(--text3);padding:20px">No setups match this filter.</div>';
 }
@@ -1639,9 +1771,12 @@ function switchChart(ticker,idx,mode){
   document.getElementById(`btn-w-${ticker}-${idx}`).classList.toggle('active',mode==='weekly');
 }
 function switchLTChart(ticker,idx,mode){
-  const ohlc=mode==='weekly'?mockOHLC(ticker,52,0.4,0.024):mockOHLC(ticker,60,0.4);
-  const rs=mockRSLine(ohlc);
-  document.getElementById(`lt-chart-${ticker}-${idx}`).innerHTML=makeChart(ohlc,rs);
+  const stock=(DATA.longterm||[]).find(s=>s.ticker===ticker);
+  const realChart=CHART_CACHE[ticker]||(stock&&stock.chart&&stock.chart.length>=15?stock.chart:null);
+  const ohlc=realChart?(mode==='weekly'?dailyToWeekly(realChart):realChart)
+    :(mode==='weekly'?dailyToWeekly(shapeOHLC(ticker,'NH_EARNINGS',60)):shapeOHLC(ticker,'NH_EARNINGS',60));
+  const rs=stock&&stock.rs_line&&stock.rs_line.length>1?stock.rs_line:mockRSLine(ohlc);
+  document.getElementById(`lt-chart-${ticker}-${idx}`).innerHTML=makeLTChart(ohlc,rs);
   document.getElementById(`lt-btn-d-${ticker}-${idx}`).classList.toggle('active',mode==='daily');
   document.getElementById(`lt-btn-w-${ticker}-${idx}`).classList.toggle('active',mode==='weekly');
 }
@@ -1804,7 +1939,7 @@ function renderSectorFilter(){
   bar.querySelectorAll('.sf-btn').forEach(b=>{
     b.addEventListener('click',()=>{
       ACTIVE_SECTOR=b.dataset.sector;
-      renderSectorFilter();
+    
       renderScreenerGrid();
     });
   });
