@@ -350,6 +350,47 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
 /* ── CA FLAG ── */
 .ca-badge{font-size:8px;padding:1px 4px;border-radius:2px;background:rgba(255,0,0,.12);color:#ef4444;border:1px solid rgba(255,0,0,.25);font-family:var(--font-display);font-weight:600}
 
+/* ── CHART EXPAND MODAL ── */
+#chart-modal{
+  display:none;position:fixed;inset:0;z-index:500;
+  background:var(--bg2);
+  flex-direction:column;
+}
+#chart-modal.open{display:flex}
+#chart-modal-inner{
+  display:flex;flex-direction:column;
+  width:100%;height:100%;overflow:hidden;
+}
+#chart-modal-head{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 18px;border-bottom:1px solid var(--border);
+  background:var(--bg3);
+}
+#chart-modal-ticker{font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--text)}
+#chart-modal-name{font-size:11px;color:var(--text3);flex:1}
+#chart-modal-indicators{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+#chart-modal-close{
+  width:28px;height:28px;border-radius:50%;border:1px solid var(--border);
+  background:var(--bg4);cursor:pointer;font-size:14px;color:var(--text3);
+  display:flex;align-items:center;justify-content:center;transition:all .15s;
+  margin-left:8px;flex-shrink:0;
+}
+#chart-modal-close:hover{background:var(--bear-bg);border-color:var(--bear);color:var(--bear)}
+#chart-modal-tf{display:flex;gap:4px;padding:10px 18px;background:var(--bg3);border-bottom:1px solid var(--border)}
+#chart-modal-chart{padding:0;line-height:0;flex:1;overflow:hidden;display:flex;flex-direction:column}
+.scard-chart{cursor:pointer;position:relative}
+
+.view-chart-btn{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  padding:10px 14px;
+  font-family:var(--font-display);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--accent);background:var(--bg3);
+  border-top:1px solid var(--border);
+  transition:background .15s,color .15s;
+  user-select:none;
+}
+.scard:hover .view-chart-btn{background:var(--accent);color:#fff;}
+
 /* ── EXPORT BTN ── */
 #export-btn{font-family:var(--font-display);font-size:9px;font-weight:600;letter-spacing:.06em;padding:4px 12px;border-radius:4px;cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--text3);transition:all .15s;flex-shrink:0}
 #export-btn:hover{color:var(--accent);border-color:var(--accent)}
@@ -509,6 +550,23 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-si
   <div id="screener-grid"></div>
 </div>
 
+<!-- CHART EXPAND MODAL -->
+<div id="chart-modal">
+  <div id="chart-modal-inner">
+    <div id="chart-modal-head">
+      <span id="chart-modal-ticker">—</span>
+      <span id="chart-modal-name"></span>
+      <div id="chart-modal-indicators"></div>
+      <button id="chart-modal-close" title="Close (Esc)">✕</button>
+    </div>
+    <div id="chart-modal-tf">
+      <button class="ct-btn active" data-mf="daily">Daily</button>
+      <button class="ct-btn" data-mf="weekly">Weekly</button>
+    </div>
+    <div id="chart-modal-chart"></div>
+  </div>
+</div>
+
 <script>
 // ── MA CALCULATIONS ──────────────────────────────────────────────────────────
 function calcEMA(arr,period){
@@ -524,6 +582,28 @@ function calcSMA(arr,period){
     if(i<period-1)return null;
     return arr.slice(i-period+1,i+1).reduce((a,b)=>a+b,0)/period;
   });
+}
+
+// ── ANCHORED VWAP ─────────────────────────────────────────────────────────────
+function calcAVWAP(ohlc, anchorIdx){
+  if(!ohlc||!ohlc.length) return [];
+  const start = anchorIdx||0;
+  let cumPV=0, cumV=0;
+  return ohlc.map((d,i)=>{
+    if(i<start) return null;
+    const tp=(d.h+d.l+d.c)/3;
+    cumPV+=tp*(d.v||1); cumV+=(d.v||1);
+    return cumV>0?cumPV/cumV:tp;
+  });
+}
+// Auto-detect anchor: lowest close in middle third of bars (base low)
+function autoAnchor(ohlc){
+  if(!ohlc||ohlc.length<10) return 0;
+  const n=ohlc.length;
+  const s=Math.floor(n*.25), e=Math.floor(n*.70);
+  let minC=Infinity, minIdx=s;
+  for(let i=s;i<=e;i++){if(ohlc[i].c<minC){minC=ohlc[i].c;minIdx=i;}}
+  return minIdx;
 }
 
 // ── MOCK CHART DATA ──────────────────────────────────────────────────────────
@@ -1015,8 +1095,7 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
 }
 
 // ── SVG CHART ────────────────────────────────────────────────────────────────
-function makeChart(ohlc,rsLine,patternKey){
-  const W=300;
+function makeChart(ohlc,rsLine,patternKey,W=300){
   if(!ohlc||!ohlc.length)return'';
   const n=ohlc.length;
   const closes=ohlc.map(d=>d.c),vols=ohlc.map(d=>d.v||0);
@@ -1053,6 +1132,15 @@ function makeChart(ohlc,rsLine,patternKey){
   s+=maPath(sma50,'#2563eb','.6','');
   s+=maPath(ema21,'#f97316','.7','');
   s+=maPath(ema9,'#9333ea','.7','');
+  // AVWAP
+  const anchorIdx=autoAnchor(ohlc);
+  const avwap=calcAVWAP(ohlc,anchorIdx);
+  s+=maPath(avwap,'#0891b2','1.0','');
+  // anchor dot
+  if(avwap[anchorIdx]!==null){
+    const ax=(pL+anchorIdx*bw+bw*.5).toFixed(1),ay=pY(avwap[anchorIdx]).toFixed(1);
+    s+=`<circle cx="${ax}" cy="${ay}" r="2.2" fill="#0891b2" opacity=".8"/>`;
+  }
   // Pattern overlay (drawn on top of MAs, before price label)
   if(patternKey) s+=drawOverlay(ohlc,patternKey,pY,bw,pL,W,pR);
   const lc=ohlc[n-1].c,ly=pY(lc);
@@ -1494,8 +1582,7 @@ function switchMC(mc){
 
 
 // Long-term chart — 50, 100, 200 SMA + RS panel + Volume — dark terminal theme
-function makeLTChart(ohlc, rsLine){
-  const W=300;
+function makeLTChart(ohlc, rsLine, W=300){
   if(!ohlc||!ohlc.length)return'';
   const n=ohlc.length;
   const closes=ohlc.map(d=>d.c),vols=ohlc.map(d=>d.v||0);
@@ -1542,6 +1629,14 @@ function makeLTChart(ohlc, rsLine){
   s+=maPath(sma200,'#dc2626','.75','3,2');   // red dashed
   s+=maPath(sma100,'#d97706','.65','2,2');   // amber dashed
   s+=maPath(sma50, '#1d4ed8','1.0','');      // blue solid
+  // AVWAP
+  const anchorIdx=autoAnchor(ohlc);
+  const avwap=calcAVWAP(ohlc,anchorIdx);
+  s+=maPath(avwap,'#0891b2','1.1','');
+  if(avwap[anchorIdx]!==null){
+    const ax=(pL+anchorIdx*bw+bw*.5).toFixed(1),ay=pY(avwap[anchorIdx]).toFixed(1);
+    s+=`<circle cx="${ax}" cy="${ay}" r="2.5" fill="#0891b2" opacity=".8"/>`;
+  }
   // Price label
   const lc=ohlc[n-1].c,ly=pY(lc);
   const lbl=lc>=1000?lc.toFixed(0):lc>=10?lc.toFixed(2):lc.toFixed(3);
@@ -1559,6 +1654,7 @@ function makeLTChart(ohlc, rsLine){
   s+=labelMA(sma50,'#1d4ed8','50');
   s+=labelMA(sma100,'#d97706','100');
   s+=labelMA(sma200,'#dc2626','200');
+  s+=labelMA(avwap,'#0891b2','AVWAP');
   // ── RS PANEL ──────────────────────────────────────────────────────────────
   if(hasRS){
     const ry0=PH+GAP,ryT=ry0+4,ryB=ry0+RSH-2;
@@ -1630,15 +1726,14 @@ function renderScreenerGrid(){
   grid.innerHTML=filtered.map((s,idx)=>{
     const ohlc=getChartOHLC(s,false);
     const rs=s.rs_line&&s.rs_line.length>1?s.rs_line:mockRSLine(ohlc);
-    const chartId=`chart-${s.ticker}-${idx}-${ACTIVE_MC}`;
     const sfWarn=s.sf>15;
     const badgeCls=ACTIVE_MC==='bearish'?'BEAR':ACTIVE_MC==='choppy'?'PP':'VCP';
     const saved=isSaved(s.ticker);
     const fromPivot=s.from_high_pct||s.from_top_pct||s.from_pivot||null;
-    return`<div class="scard">
+    return`<div class="scard" data-ticker="${s.ticker}" data-name="${s.name||''}" data-pattern="${s.strategy||'BASE'}" data-lt="0">
       <div class="scard-head">
         <div class="scard-top">
-          <button class="star-btn${saved?' saved':''}" data-ticker="${s.ticker}" onclick="toggleWatchlist('${s.ticker}')">${saved?'★':'☆'}</button>
+          <button class="star-btn${saved?' saved':''}" data-ticker="${s.ticker}" onclick="event.stopPropagation();toggleWatchlist('${s.ticker}')">${saved?'★':'☆'}</button>
           <span class="scard-ticker">${s.ticker}</span>${caBadge(s.ticker)}
           <span class="strategy-badge ${badgeCls}">${STRAT_LABELS[s.strategy]||s.strategy}</span>
           <span class="status-badge ${s.status}">${s.status}</span>
@@ -1657,44 +1752,19 @@ function renderScreenerGrid(){
         <span class="pill">${s.sector}</span>
         ${s.wt>0?`<span class="pill tight">🔒 ${s.wt}wt</span>`:''}
         ${s.sf!=null?`<span class="pill ${sfWarn?'warn':''}">Short ${s.sf}%</span>`:''}
-        <a class="pill" href="https://www.tradingview.com/chart/?symbol=${s.ticker}" target="_blank">TV</a>
-        <a class="pill" href="https://finviz.com/quote.ashx?t=${s.ticker}" target="_blank">FZ</a>
+        <a class="pill" href="https://www.tradingview.com/chart/?symbol=${s.ticker}" target="_blank" onclick="event.stopPropagation()">TV</a>
+        <a class="pill" href="https://finviz.com/quote.ashx?t=${s.ticker}" target="_blank" onclick="event.stopPropagation()">FZ</a>
       </div>
       ${pivotDist(fromPivot)}
       ${high52Bar(ohlc)}
       ${posSize(s.price)}
-      <div class="chart-controls">
-        <button class="ct-btn active" onclick="switchChart2('${s.ticker}',${idx},'daily','${ACTIVE_MC}')" id="btn-d-${s.ticker}-${idx}-${ACTIVE_MC}">Daily</button>
-        <button class="ct-btn" onclick="switchChart2('${s.ticker}',${idx},'weekly','${ACTIVE_MC}')" id="btn-w-${s.ticker}-${idx}-${ACTIVE_MC}">Weekly</button>
-      </div>
-      <div class="chart-indicators">
-        <span class="ci e9"><b></b>9 EMA</span>
-        <span class="ci e21"><b></b>21 EMA</span>
-        <span class="ci s50"><b></b>50 SMA</span>
-        <span class="ci s200"><b></b>200 SMA</span>
-        <span style="font-size:8px;color:#10b981;margin-left:4px">· RS</span>
-        <span style="font-size:8px;color:#0d9488;margin-left:2px">· Vol</span>
-      </div>
-      <div class="scard-chart" id="${chartId}">${makeChart(ohlc,rs,s.strategy)}</div>
+      <div class="view-chart-btn">View Chart →</div>
     </div>`;
   }).join('') || '<div style="color:var(--text3);padding:20px">No setups match this filter.</div>';
+  wireCardClicks(grid);
 }
 
-function switchChart2(ticker,idx,mode,mc){
-  const dataKey={bullish:'swing',bearish:'bearish',choppy:'choppy'}[mc]||'swing';
-  const allStocks=[...(DATA[dataKey]||[]),...(DATA.longterm||[])];
-  const stock=allStocks.find(s=>s.ticker===ticker);
-  const realChart=CHART_CACHE[ticker]||(stock&&stock.chart&&stock.chart.length>=15?stock.chart:null);
-  const ohlc=realChart
-    ?(mode==='weekly'?dailyToWeekly(realChart):realChart)
-    :(mode==='weekly'?dailyToWeekly(shapeOHLC(ticker,stock?.strategy||'BASE',60)):shapeOHLC(ticker,stock?.strategy||'BASE',60));
-  const rs=stock&&stock.rs_line&&stock.rs_line.length>1?stock.rs_line:mockRSLine(ohlc);
-  document.getElementById(`chart-${ticker}-${idx}-${mc}`).innerHTML=makeChart(ohlc,rs,stock?.strategy);
-  document.getElementById(`btn-d-${ticker}-${idx}-${mc}`).classList.toggle('active',mode==='daily');
-  document.getElementById(`btn-w-${ticker}-${idx}-${mc}`).classList.toggle('active',mode==='weekly');
-}
-
-function renderLongTerm(){
+// ── WATCHLIST (localStorage) ─────────────────────────────────────────────────
   const LT_SUBS = [
     { key:'ALL',             label:'All' },
     { key:'NH_EARNINGS',     label:'New Highs + Earnings' },
@@ -1724,9 +1794,8 @@ function renderLongTerm(){
   grid.innerHTML=filtered.map((s,idx)=>{
     const ohlc=getChartOHLC(s,false);
     const rs=s.rs_line&&s.rs_line.length>1?s.rs_line:mockRSLine(ohlc);
-    const chartId=`lt-chart-${s.ticker}-${idx}`;
     const subLabel=STRAT_LABELS[s.strategy]||s.strategy;
-    return`<div class="scard canslim-card">
+    return`<div class="scard canslim-card" data-ticker="${s.ticker}" data-name="${s.name||''}" data-pattern="${s.strategy||'NH_EARNINGS'}" data-lt="1">
       <div class="scard-head">
         <div class="scard-top">
           <span class="scard-ticker">${s.ticker}</span>
@@ -1743,42 +1812,13 @@ function renderLongTerm(){
         <span class="pill rev">Rev +${s.rev}%</span>
         ${s.inst?`<span class="pill" title="Institutional Ownership">Inst ${s.inst}%</span>`:''}
         <span class="pill">${s.sector}</span>
-        <a class="pill" href="https://www.tradingview.com/chart/?symbol=${s.ticker}" target="_blank">TV</a>
-        <a class="pill" href="https://finviz.com/quote.ashx?t=${s.ticker}" target="_blank">FZ</a>
+        <a class="pill" href="https://www.tradingview.com/chart/?symbol=${s.ticker}" target="_blank" onclick="event.stopPropagation()">TV</a>
+        <a class="pill" href="https://finviz.com/quote.ashx?t=${s.ticker}" target="_blank" onclick="event.stopPropagation()">FZ</a>
       </div>
-      <div class="chart-controls">
-        <button class="ct-btn active" onclick="switchLTChart('${s.ticker}',${idx},'daily')" id="lt-btn-d-${s.ticker}-${idx}">Daily</button>
-        <button class="ct-btn" onclick="switchLTChart('${s.ticker}',${idx},'weekly')" id="lt-btn-w-${s.ticker}-${idx}">Weekly</button>
-      </div>
-      <div class="chart-indicators">
-        <span class="ci s50"><b></b>50 SMA</span>
-        <span style="font-size:8px;color:#d97706;margin-left:4px;display:flex;align-items:center;gap:3px"><b style="display:inline-block;width:10px;height:1.5px;background:#d97706;margin-top:1px;border-radius:1px"></b>100 SMA</span>
-        <span class="ci s200"><b></b>200 SMA</span>
-        <span style="font-size:8px;color:#059669;margin-left:4px;display:flex;align-items:center;gap:3px"><b style="display:inline-block;width:10px;height:1.5px;background:#059669;margin-top:1px;border-radius:1px"></b>RS</span>
-        <span style="font-size:8px;color:var(--text3);margin-left:2px">· Vol</span>
-      </div>
-      <div class="scard-chart" id="${chartId}">${makeLTChart(ohlc,rs)}</div>
+      <div class="view-chart-btn">View Chart →</div>
     </div>`;
   }).join('') || '<div style="color:var(--text3);padding:20px">No setups match this filter.</div>';
-}
-
-// Chart switching
-function switchChart(ticker,idx,mode){
-  const ohlc=mode==='weekly'?mockOHLC(ticker,52,0.4,0.024):mockOHLC(ticker,60,0.4);
-  const rs=mockRSLine(ohlc);
-  document.getElementById(`chart-${ticker}-${idx}`).innerHTML=makeChart(ohlc,rs);
-  document.getElementById(`btn-d-${ticker}-${idx}`).classList.toggle('active',mode==='daily');
-  document.getElementById(`btn-w-${ticker}-${idx}`).classList.toggle('active',mode==='weekly');
-}
-function switchLTChart(ticker,idx,mode){
-  const stock=(DATA.longterm||[]).find(s=>s.ticker===ticker);
-  const realChart=CHART_CACHE[ticker]||(stock&&stock.chart&&stock.chart.length>=15?stock.chart:null);
-  const ohlc=realChart?(mode==='weekly'?dailyToWeekly(realChart):realChart)
-    :(mode==='weekly'?dailyToWeekly(shapeOHLC(ticker,'NH_EARNINGS',60)):shapeOHLC(ticker,'NH_EARNINGS',60));
-  const rs=stock&&stock.rs_line&&stock.rs_line.length>1?stock.rs_line:mockRSLine(ohlc);
-  document.getElementById(`lt-chart-${ticker}-${idx}`).innerHTML=makeLTChart(ohlc,rs);
-  document.getElementById(`lt-btn-d-${ticker}-${idx}`).classList.toggle('active',mode==='daily');
-  document.getElementById(`lt-btn-w-${ticker}-${idx}`).classList.toggle('active',mode==='weekly');
+  wireCardClicks(grid);
 }
 
 // ── WATCHLIST (localStorage) ─────────────────────────────────────────────────
@@ -1808,31 +1848,26 @@ function renderWatchlist(){
   const grid=document.getElementById('watchlist-grid');
   if(!WATCHLIST.length){ grid.innerHTML=`<div class="watch-empty">No stocks saved yet.<br><span style="font-size:11px;opacity:.5">Click ☆ on any card to save it here.</span></div>`; return; }
   grid.innerHTML=WATCHLIST.map((w,idx)=>{
-    const ohlc=shapeOHLC(w.ticker,w.strategy||'BASE',60);
-    const rs=mockRSLine(ohlc);
-    return`<div class="scard">
+    return`<div class="scard" data-ticker="${w.ticker}" data-name="${w.name||''}" data-pattern="${w.strategy||'BASE'}" data-lt="0">
       <div class="scard-head">
         <div class="scard-top">
-          <button class="star-btn saved" data-ticker="${w.ticker}" onclick="toggleWatchlist('${w.ticker}')">★</button>
+          <button class="star-btn saved" data-ticker="${w.ticker}" onclick="event.stopPropagation();toggleWatchlist('${w.ticker}')">★</button>
           <span class="scard-ticker">${w.ticker}</span>
           ${w.strategy?`<span class="strategy-badge VCP" style="font-size:7px">${w.strategy}</span>`:''}
           <span class="scard-score" style="font-size:16px">${(w.score||0).toFixed(1)}</span>
-          <a class="scard-ext" href="https://www.tradingview.com/chart/?symbol=${w.ticker}" target="_blank">TV</a>
-          <a class="scard-ext" href="https://finviz.com/quote.ashx?t=${w.ticker}" target="_blank">FZ</a>
+          <a class="scard-ext" href="https://www.tradingview.com/chart/?symbol=${w.ticker}" target="_blank" onclick="event.stopPropagation()">TV</a>
+          <a class="scard-ext" href="https://finviz.com/quote.ashx?t=${w.ticker}" target="_blank" onclick="event.stopPropagation()">FZ</a>
         </div>
         <div class="scard-name">${w.name} · $${fmtPrice(w.price)} · ${w.sector}</div>
       </div>
       <div class="scard-pills" style="padding-top:6px">
         <span class="pill">Added ${new Date(w.addedAt).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
       </div>
-      <div class="chart-indicators">
-        <span class="ci e9"><b></b>9 EMA</span><span class="ci e21"><b></b>21 EMA</span>
-        <span class="ci s50"><b></b>50 SMA</span><span class="ci s200"><b></b>200 SMA</span>
-      </div>
-      <div class="scard-chart">${makeChart(ohlc,rs,w.strategy)}</div>
+      <div class="view-chart-btn">View Chart →</div>
     </div>`;
   }).join('');
   updateWatchCount();
+  wireCardClicks(grid);
 }
 
 // ── EARNINGS PROXIMITY ────────────────────────────────────────────────────────
@@ -2016,6 +2051,95 @@ document.querySelectorAll('.mode-btn').forEach(btn=>{
     else { renderStrategyTabs(); renderScreenerGrid(); }
   });
 });
+
+// ── CHART EXPAND MODAL ────────────────────────────────────────────────────────
+let MODAL_STATE = { ohlc:null, rs:null, patternKey:null, mode:'daily', isLT:false, ticker:'', name:'' };
+
+function modalIndicatorLegend(isLT){
+  if(isLT) return `
+    <span class="ci s50" style="font-size:9px"><b></b>50</span>
+    <span style="font-size:9px;color:#d97706;display:flex;align-items:center;gap:3px"><b style="display:inline-block;width:12px;height:1.5px;background:#d97706;border-radius:1px"></b>100</span>
+    <span style="font-size:9px;color:#dc2626;display:flex;align-items:center;gap:3px"><b style="display:inline-block;width:12px;height:1.5px;background:#dc2626;border-radius:1px"></b>200</span>
+    <span style="font-size:9px;color:#0891b2;display:flex;align-items:center;gap:3px"><b style="display:inline-block;width:12px;height:1.5px;background:#0891b2;border-radius:1px"></b>AVWAP</span>
+    <span style="font-size:9px;color:#059669;display:flex;align-items:center;gap:3px"><b style="display:inline-block;width:12px;height:1.5px;background:#059669;border-radius:1px"></b>RS</span>
+    <span style="font-size:9px;color:var(--text3)">· Vol</span>`;
+  return `
+    <span style="font-size:9px;color:#9333ea;display:flex;align-items:center;gap:3px"><b style="display:inline-block;width:12px;height:1.5px;background:#9333ea;border-radius:1px"></b>9 EMA</span>
+    <span style="font-size:9px;color:#f97316;display:flex;align-items:center;gap:3px"><b style="display:inline-block;width:12px;height:1.5px;background:#f97316;border-radius:1px"></b>21 EMA</span>
+    <span class="ci s50" style="font-size:9px"><b></b>50</span>
+    <span class="ci s200" style="font-size:9px"><b></b>200</span>
+    <span style="font-size:9px;color:#0891b2;display:flex;align-items:center;gap:3px"><b style="display:inline-block;width:12px;height:1.5px;background:#0891b2;border-radius:1px"></b>AVWAP</span>
+    <span style="font-size:9px;color:#059669">· RS</span>
+    <span style="font-size:9px;color:var(--text3)">· Vol</span>`;
+}
+
+function openChartModal(ticker, name, ohlcDaily, rs, patternKey, isLT){
+  MODAL_STATE = { ohlcDaily, rs, patternKey, mode:'daily', isLT, ticker, name };
+  document.getElementById('chart-modal-ticker').textContent = ticker;
+  document.getElementById('chart-modal-name').textContent = name ? '· '+name : '';
+  document.getElementById('chart-modal-indicators').innerHTML = modalIndicatorLegend(isLT);
+  document.querySelectorAll('#chart-modal-tf .ct-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.mf==='daily');
+  });
+  renderModalChart();
+  document.getElementById('chart-modal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function renderModalChart(){
+  const {ohlcDaily, rs, patternKey, mode, isLT} = MODAL_STATE;
+  const ohlc = mode==='weekly' ? dailyToWeekly(ohlcDaily) : ohlcDaily;
+  const W = window.innerWidth;
+  const html = isLT ? makeLTChart(ohlc, rs, W) : makeChart(ohlc, rs, patternKey, W);
+  const chartEl = document.getElementById('chart-modal-chart');
+  chartEl.innerHTML = html;
+  // stretch SVG to fill remaining vertical space
+  const svg = chartEl.querySelector('svg');
+  if(svg){
+    const usedH = document.getElementById('chart-modal-head').offsetHeight
+                + document.getElementById('chart-modal-tf').offsetHeight;
+    const availH = window.innerHeight - usedH;
+    svg.style.width = '100%';
+    svg.style.height = availH + 'px';
+    svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+  }
+}
+
+function closeChartModal(){
+  document.getElementById('chart-modal').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+// Modal TF buttons
+document.getElementById('chart-modal-tf').addEventListener('click', e=>{
+  const btn = e.target.closest('.ct-btn');
+  if(!btn) return;
+  MODAL_STATE.mode = btn.dataset.mf;
+  document.querySelectorAll('#chart-modal-tf .ct-btn').forEach(b=>b.classList.toggle('active',b===btn));
+  renderModalChart();
+});
+
+document.getElementById('chart-modal-close').addEventListener('click', closeChartModal);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeChartModal(); });
+window.addEventListener('resize', ()=>{ if(document.getElementById('chart-modal').classList.contains('open')) renderModalChart(); });
+
+// Wire click on entire card to open modal
+function wireCardClicks(container){
+  container.querySelectorAll('.scard[data-ticker]').forEach(el=>{
+    el.style.cursor='pointer';
+    el.addEventListener('click', ()=>{
+      const ticker = el.dataset.ticker;
+      const name = el.dataset.name||'';
+      const isLT = el.dataset.lt==='1';
+      const patternKey = el.dataset.pattern||'BASE';
+      const stock = [...(DATA.swing||[]),...(DATA.bearish||[]),...(DATA.longterm||[]),...WATCHLIST].find(s=>s.ticker===ticker);
+      const realChart = CHART_CACHE[ticker]||(stock?.chart?.length>=15?stock.chart:null);
+      const ohlc = realChart || shapeOHLC(ticker, patternKey, 60);
+      const rs = stock?.rs_line?.length>1 ? stock.rs_line : mockRSLine(ohlc);
+      openChartModal(ticker, name, ohlc, rs, patternKey, isLT);
+    });
+  });
+}
 
 // ── LOAD DATA + INIT ──────────────────────────────────────────────────────────
 async function init(){
