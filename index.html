@@ -1097,11 +1097,12 @@ function drawOverlay(ohlc, patternKey, pY, bw, pL, W, pR){
 // ── SVG CHART ────────────────────────────────────────────────────────────────
 function makeChart(ohlc,rsLine,patternKey,W=300){
   if(!ohlc||!ohlc.length)return'';
+  const scale = W/300;
   const n=ohlc.length;
   const closes=ohlc.map(d=>d.c),vols=ohlc.map(d=>d.v||0);
   const hasVol=vols.some(v=>v>0),hasRS=Array.isArray(rsLine)&&rsLine.length>1;
-  const PH=96,RSH=26,VH=34,GAP=5;
-  const pL=4,pR=58,pT=4,pB=4;
+  const PH=Math.round(96*scale),RSH=Math.round(26*scale),VH=Math.round(34*scale),GAP=Math.round(5*scale);
+  const pL=Math.round(4*scale),pR=Math.round(58*scale),pT=Math.round(4*scale),pB=Math.round(4*scale);
   const totalH=PH+(hasRS?GAP+RSH:0)+(hasVol?GAP+VH:0)+4;
   const bw=(W-pL-pR)/n,cw=Math.max(1,bw*.65);
   const allP=ohlc.flatMap(d=>[d.h,d.l]);
@@ -1584,12 +1585,13 @@ function switchMC(mc){
 // Long-term chart — 50, 100, 200 SMA + RS panel + Volume — dark terminal theme
 function makeLTChart(ohlc, rsLine, W=300){
   if(!ohlc||!ohlc.length)return'';
+  const scale = W/300;
   const n=ohlc.length;
   const closes=ohlc.map(d=>d.c),vols=ohlc.map(d=>d.v||0);
   const hasVol=vols.some(v=>v>0);
   const hasRS=Array.isArray(rsLine)&&rsLine.length>1;
-  const PH=108,RSH=26,VH=28,GAP=4;
-  const pL=4,pR=58,pT=4,pB=4;
+  const PH=Math.round(108*scale),RSH=Math.round(26*scale),VH=Math.round(28*scale),GAP=Math.round(4*scale);
+  const pL=Math.round(4*scale),pR=Math.round(58*scale),pT=Math.round(4*scale),pB=Math.round(4*scale);
   const totalH=PH+(hasRS?GAP+RSH:0)+(hasVol?GAP+VH:0)+4;
   const bw=(W-pL-pR)/n,cw=Math.max(1,bw*.65);
   const allP=ohlc.flatMap(d=>[d.h,d.l]);
@@ -2093,16 +2095,20 @@ function renderModalChart(){
               + document.getElementById('chart-modal-tf').offsetHeight;
   const availH = window.innerHeight - usedH;
   const availW = window.innerWidth;
-  // Use full width, let height be determined by viewBox aspect ratio
+  // Render at screen width — chart functions use W to set viewBox width
+  // The viewBox height is determined by panel heights inside the functions
+  // We just scale the SVG to fill available space
   const W = availW;
   const html = isLT ? makeLTChart(ohlc, rs, W) : makeChart(ohlc, rs, patternKey, W);
   const chartEl = document.getElementById('chart-modal-chart');
   chartEl.innerHTML = html;
   const svg = chartEl.querySelector('svg');
   if(svg){
-    svg.style.width = '100%';
+    // Force SVG to fill the full available area, ignoring aspect ratio
+    svg.style.width = availW + 'px';
     svg.style.height = availH + 'px';
-    svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+    svg.removeAttribute('preserveAspectRatio');
+    svg.setAttribute('preserveAspectRatio','none');
   }
 }
 
