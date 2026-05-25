@@ -1530,8 +1530,13 @@ function closeChartModal(){
 }
 
 function setModalTF(tf){
+  console.log('[TF] setModalTF called with:', tf, 'current MODAL_TF:', MODAL_TF);
   MODAL_TF = tf;
-  renderModalTFs();
+  // Update active class without rebuilding buttons (avoids double-fire)
+  document.querySelectorAll('.tf-modal').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tf === tf);
+  });
+  console.log('[TF] MODAL_TF now:', MODAL_TF, 'calling renderCanvasChart');
   setTimeout(renderCanvasChart, 0);
 }
 
@@ -1539,7 +1544,7 @@ function renderModalTFs(){
   const bar = document.getElementById('modal-tfs');
   if(!bar) return;
   bar.innerHTML = MODAL_TFS.map(tf =>
-    `<button class="tf-modal${MODAL_TF===tf.key?' active':''}" onclick="setModalTF('${tf.key}')">${tf.label}</button>`
+    `<button class="tf-modal${MODAL_TF===tf.key?' active':''}" data-tf="${tf.key}" onclick="setModalTF('${tf.key}')">${tf.label}</button>`
   ).join('');
 }
 
