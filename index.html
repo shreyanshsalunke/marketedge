@@ -1049,6 +1049,7 @@ function renderScreenerGrid(){
           <div style="display:flex;align-items:center;gap:7px">
             <span class="scard-rank" style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">#${idx+1}</span>
             <span class="scard-ticker">${s.ticker}</span>
+            <button class="star-btn${isSaved(s.ticker)?' saved':''}" data-ticker="${s.ticker}" onclick="event.stopPropagation();toggleWatchlist('${s.ticker}')">${isSaved(s.ticker)?'★':'☆'}</button>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
             <span class="scard-score" style="color:${s.score>=80?'#3fb950':s.score>=65?'#58a6ff':'#d29922'}">${s.score.toFixed(1)}</span>
