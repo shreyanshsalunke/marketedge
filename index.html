@@ -1533,7 +1533,6 @@ function closeChartModal(){
 function setModalTF(tf){
   MODAL_TF = tf;
   renderModalTFs();
-  // Allow modal to render before sizing canvas
   requestAnimationFrame(() => renderCanvasChart());
 }
 
@@ -1582,7 +1581,7 @@ function renderCanvasChart(){
   ctx.fillRect(0, 0, W, H);
 
   const PAD_L=52, PAD_R=16, PAD_T=20, PAD_B=32;
-  const VOL_H = Math.floor(H * 0.18);  // volume pane height
+  const VOL_H = Math.floor(H * 0.25);  // volume pane height — 25% for visibility
   const PRICE_H = H - PAD_T - PAD_B - VOL_H - 8;
 
   const priceTop = PAD_T;
@@ -1647,8 +1646,9 @@ function renderCanvasChart(){
     ctx.fillStyle = col;
     ctx.fillRect(cx - candleW/2, bodyTop, candleW, bodyH);
 
-    // Volume bar
-    const vh = vH(d.v);
+    // Volume bar — use sqrt scaling so small bars are still visible
+    const volNorm = Math.sqrt(d.v / maxV);
+    const vh = Math.max(1, volNorm * VOL_H);
     ctx.fillStyle = isUp ? volUp : volDn;
     ctx.fillRect(cx - candleW/2, volBot - vh, candleW, vh);
   });
