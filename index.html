@@ -1545,11 +1545,13 @@ function renderModalTFs(){
 
 function renderCanvasChart(){
   const canvas = document.getElementById('modal-canvas');
-  if(!canvas || !MODAL_CARD_DATA) return;
+  console.log('[Chart] renderCanvasChart called, TF=', MODAL_TF, 'cardData=', !!MODAL_CARD_DATA);
+  if(!canvas || !MODAL_CARD_DATA) { console.log('[Chart] early return - canvas:', !!canvas, 'data:', !!MODAL_CARD_DATA); return; }
 
   const data = MODAL_TF === 'weekly'
     ? (MODAL_CARD_DATA.weekly_chart || MODAL_CARD_DATA.chart || [])
     : (MODAL_CARD_DATA.chart || []);
+  console.log('[Chart] TF=', MODAL_TF, 'data length=', data.length, 'has weekly=', !!(MODAL_CARD_DATA && MODAL_CARD_DATA.weekly_chart));
 
   const status = document.getElementById('modal-chart-status');
 
