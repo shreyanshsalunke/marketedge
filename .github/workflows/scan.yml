@@ -1,0 +1,49 @@
+name: MarketEdge Daily Scan
+
+on:
+  schedule:
+    # 9:32 PM UTC = 4:32 PM ET (accounts for DST automatically)
+    - cron: '32 21 * * 1-5'
+  workflow_dispatch:  # allow manual trigger from GitHub UI
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install yfinance pandas numpy requests PyGithub
+
+      - name: Run scanner
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GITHUB_REPO: ${{ secrets.GITHUB_REPO }}
+        run: python3 scanner_market.py
+
+      - name: Commit market_data.json
+        run: |
+          git config user.name "MarketEdge Bot"
+          git config user.email "bot@marketedge.app"
+          git add market_data.json
+          git diff --staged --quiet || git commit -m "Scan $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push

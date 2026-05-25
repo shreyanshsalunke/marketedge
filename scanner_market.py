@@ -2036,6 +2036,25 @@ def run(test_mode=False):
         "choppy":        swing_chop,
         "longterm":      lt_hits,
     }
+    # ── Score delta: compare with previous scan ──────────────────────────────
+    prev_scores = {}
+    try:
+        if Path(CFG["output_file"]).exists():
+            prev = json.loads(Path(CFG["output_file"]).read_text())
+            for key in ["qullamaggie","minervini","oneil","weinstein","bearish","choppy","longterm"]:
+                for r in prev.get(key, []):
+                    prev_scores[r["ticker"]] = r.get("score", 0)
+    except: pass
+
+    all_new = q_hits + m_hits + o_hits + w_hits + swing_bear + swing_chop + lt_hits
+    for r in all_new:
+        prev = prev_scores.get(r["ticker"])
+        if prev is not None:
+            delta = round(r["score"] - prev, 1)
+            r["score_delta"] = delta
+        else:
+            r["score_delta"] = None  # new stock, no prior score
+
     total = len(q_hits)+len(m_hits)+len(o_hits)+len(w_hits)+len(swing_bear)+len(swing_chop)+len(lt_hits)
     with open(CFG["output_file"], "w") as f:
         json.dump(output, f, indent=2)
