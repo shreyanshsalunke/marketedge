@@ -466,6 +466,11 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
 #export-btn{font-family:var(--font-display);font-size:9px;font-weight:600;letter-spacing:.06em;padding:4px 12px;border-radius:4px;cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--text3);transition:all .15s;flex-shrink:0}
 #export-btn:hover{color:var(--accent);border-color:var(--accent)}
 
+
+#chart-modal.open{display:flex!important}
+.tf-modal{font-family:var(--font-mono);font-size:9px;padding:3px 9px;border-radius:3px;cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--text3);transition:all .12s}
+.tf-modal.active{background:var(--bg4);color:var(--accent);border-color:var(--accent)}
+
 </style>
 </head>
 <body>
@@ -1015,7 +1020,7 @@ function renderScreenerGrid(){
   const label={qullamaggie:'Qullamaggie',minervini:'Minervini',oneil:"O'Neil/IBD",weinstein:'Weinstein',bearish:'Bearish',choppy:'Choppy'}[ACTIVE_MC]||ACTIVE_MC;
   const stratLabel=ACTIVE_STRAT==='ALL'?'All Setups':STRAT_LABELS[ACTIVE_STRAT]||ACTIVE_STRAT;
   document.getElementById('screener-meta').textContent=
-    `${filtered.length} setups · ${label} · ${stratLabel} · Ranked by RS · US + Canada`;
+    `${filtered.length} setups · ${label} · ${stratLabel} · Ranked by RS · US`;
   const grid=document.getElementById('screener-grid');
   grid.innerHTML=filtered.map((s,idx)=>{
     const sfWarn=s.sf>15;
@@ -1027,7 +1032,7 @@ function renderScreenerGrid(){
     const epsCls=!s.eps?'':(s.eps<0?'neg':'pos');
     const revCls=!s.rev?'':(s.rev<0?'neg':'pos');
     const pivotCls=fromPivot<=3?'blue':fromPivot<=7?'warn':'neg';
-    return`<div class="scard" data-ticker="${s.ticker}" onclick="window.open('https://www.tradingview.com/chart/?symbol=${s.ticker}','_blank')">
+    return`<div class="scard" data-ticker="${s.ticker}" data-name="${s.name||''}">
       <div class="scard-default">
         <div class="scard-row1">
           <div style="display:flex;align-items:center;gap:7px">
@@ -1084,7 +1089,7 @@ function renderLongTerm(){
   const filtered=ACTIVE_STRAT==='ALL'?all:all.filter(s=>s.strategy===ACTIVE_STRAT);
   const grid=document.getElementById('screener-grid');
   document.getElementById('screener-meta').textContent=
-    `${filtered.length} setups · CANSLIM methodology · ${STRAT_LABELS[ACTIVE_STRAT]||'All Sub-Categories'} · US + Canada`;
+    `${filtered.length} setups · CANSLIM methodology · ${STRAT_LABELS[ACTIVE_STRAT]||'All Sub-Categories'} · US`;
 
   grid.innerHTML=filtered.map((s,idx)=>{
     const subLabel=STRAT_LABELS[s.strategy]||s.strategy;
@@ -1095,7 +1100,7 @@ function renderLongTerm(){
     const epsCls=!s.eps?'':(s.eps<0?'neg':'pos');
     const revCls=!s.rev?'':(s.rev<0?'neg':'pos');
     const barW=Math.min(100,scoreVal);
-    return`<div class="scard canslim-card" data-ticker="${s.ticker}" onclick="window.open('https://www.tradingview.com/chart/?symbol=${s.ticker}','_blank')">
+    return`<div class="scard canslim-card" data-ticker="${s.ticker}" data-name="${s.name||''}">
       <div class="scard-default">
         <div class="scard-row1">
           <div style="display:flex;align-items:center;gap:7px">
@@ -1152,7 +1157,7 @@ function renderWatchlist(){
   const grid=document.getElementById('watchlist-grid');
   if(!WATCHLIST.length){ grid.innerHTML=`<div class="watch-empty">No stocks saved yet.<br><span style="font-size:11px;opacity:.5">Click ☆ on any card to save it here.</span></div>`; return; }
   grid.innerHTML=WATCHLIST.map((w,idx)=>{
-    return`<div class="scard" data-ticker="${w.ticker}" style="cursor:pointer" onclick="window.open('https://www.tradingview.com/chart/?symbol=${w.ticker}','_blank')">
+    return`<div class="scard" data-ticker="${w.ticker}">
       <div class="scard-head">
         <div class="scard-top">
           <button class="star-btn saved" data-ticker="${w.ticker}" onclick="event.stopPropagation();toggleWatchlist('${w.ticker}')">★</button>
@@ -1423,14 +1428,27 @@ function updateRegimeBanner(){
 document.addEventListener('click',function(e){
   const card=e.target.closest('.scard');
   if(!card) return;
-  if(window.innerWidth>768) return;
   const link=e.target.closest('a');
   if(link) return;
-  e.preventDefault();
-  e.stopPropagation();
-  const already=card.classList.contains('tapped');
-  document.querySelectorAll('.scard.tapped').forEach(c=>c.classList.remove('tapped'));
-  if(!already) card.classList.add('tapped');
+  const btn=e.target.closest('button');
+  if(btn) return;
+  const ticker=card.dataset.ticker;
+  if(!ticker) return;
+
+  if(window.innerWidth<=768){
+    // Mobile: first tap expands, second tap opens chart modal
+    if(!card.classList.contains('tapped')){
+      e.preventDefault();
+      e.stopPropagation();
+      document.querySelectorAll('.scard.tapped').forEach(c=>c.classList.remove('tapped'));
+      card.classList.add('tapped');
+    } else {
+      openChartModal(ticker, card.dataset.name||'');
+    }
+  } else {
+    // Desktop: single click opens chart modal
+    openChartModal(ticker, card.dataset.name||'');
+  }
 },true);
 
 // ── BETTER CSV EXPORT ─────────────────────────────────────────────────────────
@@ -1473,6 +1491,113 @@ function filterBySearch(val){
   if(el) el.textContent=q?`${shown} match${shown!==1?'es':''}`:'';
 }
 
+
+// ── CHART MODAL ───────────────────────────────────────────────────────────────
+let MODAL_TICKER = '';
+let MODAL_TF = 'D';
+const MODAL_TFS = [
+  {label:'5m',  tv:'5'},
+  {label:'15m', tv:'15'},
+  {label:'1h',  tv:'60'},
+  {label:'4h',  tv:'240'},
+  {label:'1D',  tv:'D'},
+  {label:'1W',  tv:'W'},
+  {label:'1M',  tv:'M'},
+];
+
+function openChartModal(ticker, name){
+  const modal = document.getElementById('chart-modal');
+  if(!modal) return;
+  MODAL_TICKER = ticker;
+  document.getElementById('modal-ticker').textContent = ticker;
+  document.getElementById('modal-name').textContent = name || '';
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderModalTFs();
+  loadModalChart();
+}
+
+function closeChartModal(){
+  const modal = document.getElementById('chart-modal');
+  modal.classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('modal-chart').innerHTML = '';
+}
+
+function renderModalTFs(){
+  const bar = document.getElementById('modal-tfs');
+  bar.innerHTML = MODAL_TFS.map(tf =>
+    `<button class="tf-modal${MODAL_TF===tf.tv?' active':''}" onclick="setModalTF('${tf.tv}')">${tf.label}</button>`
+  ).join('');
+}
+
+function setModalTF(tf){
+  MODAL_TF = tf;
+  renderModalTFs();
+  loadModalChart();
+}
+
+function loadModalChart(){
+  const container = document.getElementById('modal-chart');
+  container.innerHTML = '';
+  const script = document.createElement('script');
+  script.src = 'https://s3.tradingview.com/tv.js';
+  script.onload = function(){
+    new TradingView.widget({
+      container_id: 'modal-chart',
+      symbol: MODAL_TICKER,
+      interval: MODAL_TF,
+      timezone: 'America/New_York',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      toolbar_bg: '#161b22',
+      enable_publishing: false,
+      hide_top_toolbar: false,
+      hide_legend: false,
+      save_image: false,
+      height: '100%',
+      width: '100%',
+    });
+  };
+  if(window.TradingView){
+    script.onload();
+  } else {
+    container.appendChild(script);
+  }
+}
+
+// Close on backdrop click + Escape — deferred so modal HTML exists
+window.addEventListener('load', function(){
+  const modalEl = document.getElementById('chart-modal');
+  if(modalEl){
+    modalEl.addEventListener('click', function(e){
+      if(e.target === this) closeChartModal();
+    });
+  }
+});
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape') closeChartModal();
+});
+
 </script>
+
+<!-- CHART MODAL -->
+<div id="chart-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);align-items:center;justify-content:center">
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;width:min(92vw,900px);height:min(85vh,600px);display:flex;flex-direction:column;overflow:hidden;position:relative">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #30363d;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="modal-ticker" style="font-family:var(--font-display);font-size:18px;font-weight:700;color:#e6edf3"></span>
+        <span id="modal-name" style="font-size:11px;color:#8b949e;font-family:var(--font-mono)"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div id="modal-tfs" style="display:flex;gap:4px"></div>
+        <button onclick="closeChartModal()" style="background:none;border:1px solid #30363d;color:#8b949e;border-radius:4px;padding:4px 10px;cursor:pointer;font-family:var(--font-mono);font-size:11px">Close</button>
+      </div>
+    </div>
+    <div id="modal-chart" style="flex:1;overflow:hidden"></div>
+  </div>
+</div>
+
 </body>
 </html>
