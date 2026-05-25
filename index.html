@@ -946,10 +946,7 @@ function renderScreenerGrid(){
           <div class="hover-item"><div class="hover-label">Short float</div><div class="hover-val ${sfWarn?'warn':''}">${s.sf!=null?s.sf+'%':'—'}</div></div>
         </div>
         <div class="hover-meta">${s.sector||''} · $${fmtPrice(s.price)}${earningsFlag(s.ticker)}</div>
-        <div class="hover-links">
-          <a class="hover-link" href="https://www.tradingview.com/chart/?symbol=${s.ticker}" target="_blank" onclick="event.stopPropagation()">TV</a>
-          <a class="hover-link" href="https://finviz.com/quote.ashx?t=${s.ticker}" target="_blank" onclick="event.stopPropagation()">FZ</a>
-        </div>
+
       </div>
     </div>`;
   }).join('') || '<div style="color:var(--text3);padding:20px">No setups match this filter.</div>';
@@ -1015,10 +1012,7 @@ function renderLongTerm(){
           <div class="hover-item"><div class="hover-label">3yr trend</div><div class="hover-val ${s.annual_stable?'pos':''}">${s.annual_stable?'Rising':'—'}</div></div>
         </div>
         <div class="hover-meta">${s.sector||''} · $${fmtPrice(s.price)}</div>
-        <div class="hover-links">
-          <a class="hover-link" href="https://www.tradingview.com/chart/?symbol=${s.ticker}" target="_blank" onclick="event.stopPropagation()">TV</a>
-          <a class="hover-link" href="https://finviz.com/quote.ashx?t=${s.ticker}" target="_blank" onclick="event.stopPropagation()">FZ</a>
-        </div>
+
       </div>
     </div>`;
   }).join('') || '<div style="color:var(--text3);padding:20px">No CANSLIM setups found.</div>';
@@ -1059,8 +1053,6 @@ function renderWatchlist(){
           <span class="scard-ticker">${w.ticker}</span>
           ${w.strategy?`<span class="strategy-badge VCP" style="font-size:7px">${w.strategy}</span>`:''}
           <span class="scard-score" style="font-size:16px">${(w.score||0).toFixed(1)}</span>
-          <a class="scard-ext" href="https://www.tradingview.com/chart/?symbol=${w.ticker}" target="_blank" onclick="event.stopPropagation()">TV</a>
-          <a class="scard-ext" href="https://finviz.com/quote.ashx?t=${w.ticker}" target="_blank" onclick="event.stopPropagation()">FZ</a>
         </div>
         <div class="scard-name">${w.name} · $${fmtPrice(w.price)} · ${w.sector}</div>
       </div>
