@@ -35,7 +35,7 @@ CFG = {
     "min_price":       3.0,
     "min_avg_vol":     100_000,
     "top_n":           50,          # max results per scan category
-    "chart_bars":      60,          # OHLCV bars sent to frontend
+    "chart_bars":      180,         # OHLCV bars sent to frontend (180 daily = ~6M)
     "output_file":     "market_data.json",
     "batch_size":      400,
     "sector_cache":    str(Path.home() / ".marketedge_sectors.json"),
@@ -132,6 +132,25 @@ def ohlc_chart(d: pd.DataFrame, bars: int) -> list:
          "v": int(r["Volume"])}
         for ts, r in d.tail(bars).iterrows()
     ]
+
+def weekly_ohlc_chart(d: pd.DataFrame, bars: int = 104) -> list:
+    """Return last `bars` weekly candles — 104 weeks = 2 years"""
+    try:
+        weekly = d.resample("W").agg({
+            "Open": "first", "High": "max",
+            "Low": "min",  "Close": "last", "Volume": "sum"
+        }).dropna()
+        return [
+            {"t": int(ts.timestamp()),
+             "o": round(float(r["Open"]),  2),
+             "h": round(float(r["High"]),  2),
+             "l": round(float(r["Low"]),   2),
+             "c": round(float(r["Close"]), 2),
+             "v": int(r["Volume"])}
+            for ts, r in weekly.tail(bars).iterrows()
+        ]
+    except:
+        return []
 
 def rs_line(daily: pd.DataFrame, spy: pd.DataFrame, bars: int) -> list:
     """Normalized RS line vs SPY (1.0 = flat vs SPY on day 0)"""
@@ -764,6 +783,7 @@ def base_result(ticker, daily, rs_pctile, score, status, tags, extra, scan, cach
         "status":          status,
         "tags":            tags,
         "chart":           ohlc_chart(daily, CFG["chart_bars"]),
+        "weekly_chart":    weekly_ohlc_chart(daily, 104),
         "rs_line":         rs_l,
         "weeks_tight":     wt,
         "wt":              wt,

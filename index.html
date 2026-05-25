@@ -1443,11 +1443,15 @@ document.addEventListener('click',function(e){
       document.querySelectorAll('.scard.tapped').forEach(c=>c.classList.remove('tapped'));
       card.classList.add('tapped');
     } else {
-      openChartModal(ticker, card.dataset.name||'');
+      // find card data
+      const allD=[...(DATA.qullamaggie||[]),...(DATA.minervini||[]),...(DATA.oneil||[]),...(DATA.weinstein||[]),...(DATA.longterm||[]),...(DATA.bearish||[]),...(DATA.choppy||[])];
+      const cData=allD.find(s=>s.ticker===ticker)||null;
+      openChartModal(ticker, card.dataset.name||'', cData);
     }
   } else {
-    // Desktop: single click opens chart modal
-    openChartModal(ticker, card.dataset.name||'');
+    const allD=[...(DATA.qullamaggie||[]),...(DATA.minervini||[]),...(DATA.oneil||[]),...(DATA.weinstein||[]),...(DATA.longterm||[]),...(DATA.bearish||[]),...(DATA.choppy||[])];
+    const cData=allD.find(s=>s.ticker===ticker)||null;
+    openChartModal(ticker, card.dataset.name||'', cData);
   }
 },true);
 
@@ -1492,36 +1496,31 @@ function filterBySearch(val){
 }
 
 
-// ── CHART MODAL (Lightweight Charts) ─────────────────────────────────────────
+// ── CHART MODAL (Canvas — pre-computed data from JSON) ───────────────────────
 let MODAL_TICKER = '';
-let MODAL_TF = 'D';
-let lwChart = null;
-let lwCandleSeries = null;
-let lwVolSeries = null;
+let MODAL_TF = 'daily';
+let MODAL_CARD_DATA = null;
 
 const MODAL_TFS = [
-  {label:'Daily · 3M',   yf:'1d',  days:90},
-  {label:'Daily · 6M',   yf:'1d',  days:180},
-  {label:'Daily · 1Y',   yf:'1d',  days:365},
-  {label:'Weekly · 2Y',  yf:'1wk', days:730},
-  {label:'Monthly · 5Y', yf:'1mo', days:1825},
+  {label:'Daily · 6M',  key:'daily'},
+  {label:'Weekly · 2Y', key:'weekly'},
 ];
 
-// Default to 6M view for swing traders
-
-function openChartModal(ticker, name){
+function openChartModal(ticker, name, cardData){
   const modal = document.getElementById('chart-modal');
   if(!modal) return;
-  MODAL_TICKER = ticker;
-  MODAL_TF = 'Daily · 6M';
+  MODAL_TICKER  = ticker;
+  MODAL_CARD_DATA = cardData;
+  // Long term tab defaults to weekly, swing defaults to daily
+  MODAL_TF = (ACTIVE_MODE === 'lt') ? 'weekly' : 'daily';
   document.getElementById('modal-ticker').textContent = ticker;
   document.getElementById('modal-name').textContent = name || '';
   document.getElementById('modal-tv-link').href = `https://www.tradingview.com/chart/?symbol=${ticker}`;
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
   renderModalTFs();
-  initLWChart();
-  loadChartData();
+  // Allow modal to render before sizing canvas
+  requestAnimationFrame(() => renderCanvasChart());
 }
 
 function closeChartModal(){
@@ -1529,8 +1528,158 @@ function closeChartModal(){
   if(!modal) return;
   modal.classList.remove('open');
   document.body.style.overflow = '';
-  if(lwChart){ lwChart.remove(); lwChart=null; lwCandleSeries=null; lwVolSeries=null; }
 }
+
+function setModalTF(tf){
+  MODAL_TF = tf;
+  renderModalTFs();
+  // Allow modal to render before sizing canvas
+  requestAnimationFrame(() => renderCanvasChart());
+}
+
+function renderModalTFs(){
+  const bar = document.getElementById('modal-tfs');
+  if(!bar) return;
+  bar.innerHTML = MODAL_TFS.map(tf =>
+    `<button class="tf-modal${MODAL_TF===tf.key?' active':''}" onclick="setModalTF('${tf.key}')">${tf.label}</button>`
+  ).join('');
+}
+
+function renderCanvasChart(){
+  const canvas = document.getElementById('modal-canvas');
+  if(!canvas || !MODAL_CARD_DATA) return;
+
+  const data = MODAL_TF === 'weekly'
+    ? (MODAL_CARD_DATA.weekly_chart || MODAL_CARD_DATA.chart || [])
+    : (MODAL_CARD_DATA.chart || []);
+
+  const status = document.getElementById('modal-chart-status');
+
+  if(!data || data.length < 5){
+    if(status) status.textContent = 'No chart data — run scanner to refresh';
+    return;
+  }
+  if(status) status.textContent = '';
+
+  // Size canvas to actual pixel dimensions
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const W = rect.width || 800;
+  const H = rect.height || 500;
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  const isDark = !document.body.classList.contains('light-mode');
+  const bg     = isDark ? '#131722' : '#ffffff';
+  const grid   = isDark ? '#1e2433' : '#e2e7ef';
+  const txtCol = isDark ? '#8b949e' : '#6b7a8d';
+  const upCol  = '#3fb950';
+  const dnCol  = '#f85149';
+  const volUp  = 'rgba(63,185,80,0.4)';
+  const volDn  = 'rgba(248,81,73,0.4)';
+
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const PAD_L=52, PAD_R=16, PAD_T=20, PAD_B=32;
+  const VOL_H = Math.floor(H * 0.18);  // volume pane height
+  const PRICE_H = H - PAD_T - PAD_B - VOL_H - 8;
+
+  const priceTop = PAD_T;
+  const priceBot = PAD_T + PRICE_H;
+  const volTop   = priceBot + 8;
+  const volBot   = volTop + VOL_H;
+  const chartW   = W - PAD_L - PAD_R;
+
+  const n = data.length;
+  const barW = Math.max(1, chartW / n);
+  const candleW = Math.max(1, barW * 0.7);
+
+  // Price range
+  const highs  = data.map(d => d.h);
+  const lows   = data.map(d => d.l);
+  const minP   = Math.min(...lows);
+  const maxP   = Math.max(...highs);
+  const priceRange = maxP - minP || 1;
+  const pY = p => priceTop + PRICE_H - ((p - minP) / priceRange) * PRICE_H;
+
+  // Volume range
+  const vols   = data.map(d => d.v);
+  const maxV   = Math.max(...vols) || 1;
+  const vH = v => (v / maxV) * VOL_H;
+
+  // Draw grid lines (price)
+  ctx.strokeStyle = grid;
+  ctx.lineWidth = 0.5;
+  for(let i=0; i<=4; i++){
+    const y = priceTop + (PRICE_H / 4) * i;
+    ctx.beginPath(); ctx.moveTo(PAD_L, y); ctx.lineTo(W - PAD_R, y); ctx.stroke();
+    const price = maxP - (priceRange / 4) * i;
+    ctx.fillStyle = txtCol;
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(price.toFixed(2), PAD_L - 4, y + 4);
+  }
+
+  // Draw price separator line
+  ctx.strokeStyle = grid;
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(PAD_L, volTop); ctx.lineTo(W-PAD_R, volTop); ctx.stroke();
+
+  // Draw candles + volume
+  data.forEach((d, i) => {
+    const x = PAD_L + i * barW;
+    const cx = x + barW / 2;
+    const isUp = d.c >= d.o;
+    const col  = isUp ? upCol : dnCol;
+
+    // Wick
+    ctx.strokeStyle = col;
+    ctx.lineWidth   = Math.max(0.5, barW * 0.08);
+    ctx.beginPath();
+    ctx.moveTo(cx, pY(d.h));
+    ctx.lineTo(cx, pY(d.l));
+    ctx.stroke();
+
+    // Body
+    const bodyTop = pY(Math.max(d.o, d.c));
+    const bodyH   = Math.max(1, Math.abs(pY(d.o) - pY(d.c)));
+    ctx.fillStyle = col;
+    ctx.fillRect(cx - candleW/2, bodyTop, candleW, bodyH);
+
+    // Volume bar
+    const vh = vH(d.v);
+    ctx.fillStyle = isUp ? volUp : volDn;
+    ctx.fillRect(cx - candleW/2, volBot - vh, candleW, vh);
+  });
+
+  // Time labels (show ~6 labels)
+  ctx.fillStyle = txtCol;
+  ctx.font = '9px JetBrains Mono, monospace';
+  ctx.textAlign = 'center';
+  const step = Math.floor(n / 6);
+  for(let i=0; i<n; i+=step){
+    const d = data[i];
+    const x = PAD_L + i * barW + barW/2;
+    const dt = new Date(d.t * 1000);
+    const lbl = dt.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    ctx.fillText(lbl, x, volBot + 14);
+  }
+
+  // Current price label
+  const last = data[data.length-1];
+  const lastY = pY(last.c);
+  ctx.strokeStyle = isDark ? '#58a6ff' : '#0f5fa8';
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(PAD_L, lastY); ctx.lineTo(W-PAD_R, lastY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = isDark ? '#58a6ff' : '#0f5fa8';
+  ctx.font = 'bold 10px JetBrains Mono, monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText(last.c.toFixed(2), PAD_L - 4, lastY + 4);
+}
+
 
 function renderModalTFs(){
   const bar = document.getElementById('modal-tfs');
@@ -1664,10 +1813,10 @@ document.addEventListener('keydown', function(e){
       </div>
     </div>
 
-    <!-- Lightweight Chart Container -->
+    <!-- Canvas Chart -->
     <div style="flex:1;overflow:hidden;background:#131722;position:relative">
-      <div id="modal-chart-container" style="width:100%;height:100%"></div>
-      <div id="modal-chart-status" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-mono);font-size:11px;color:#8b949e;pointer-events:none"></div>
+      <canvas id="modal-canvas" style="width:100%;height:100%;display:block"></canvas>
+      <div id="modal-chart-status" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-mono);font-size:11px;color:#8b949e;pointer-events:none;text-align:center"></div>
     </div>
 
   </div>
