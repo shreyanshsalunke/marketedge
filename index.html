@@ -481,6 +481,7 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
   <div class="logo">MarketEdge <sup>BETA</sup></div>
   <div class="header-mid">
     <span class="regime-badge NEUTRAL" id="regime-badge">NEUTRAL</span>
+    <button id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"></button>
     <span class="header-stat">MCO <b id="hdr-mco">—</b></span>
     <span class="header-stat">%>50SMA <b id="hdr-pct50">—</b></span>
     <span class="header-stat">VIX <b id="hdr-vix">—</b></span>
@@ -494,10 +495,7 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
   <div class="tab-btn" data-pane="sectors"><span class="dot"></span>Sectors</div>
   <div class="tab-btn" data-pane="screener"><span class="dot"></span>Screener</div>
   <div class="tab-btn" data-pane="watchlist"><span class="dot"></span>Watchlist <span id="watch-count" style="font-size:8px;margin-left:3px;opacity:.6"></span></div>
-  <div style="margin-left:auto;display:flex;align-items:center;gap:8px;padding:0 8px">
-    <span style="font-size:10px;color:var(--text3);font-family:var(--font-mono)">Theme</span>
-    <button id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"></button>
-  </div>
+  <div style="margin-left:auto;padding:0 8px"></div>
 </div>
 
 <!-- PANE 1: MARKET -->
