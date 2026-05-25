@@ -1519,8 +1519,7 @@ function openChartModal(ticker, name, cardData){
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
   renderModalTFs();
-  // Allow modal to render before sizing canvas
-  requestAnimationFrame(() => renderCanvasChart());
+  setTimeout(renderCanvasChart, 50);
 }
 
 function closeChartModal(){
@@ -1533,7 +1532,7 @@ function closeChartModal(){
 function setModalTF(tf){
   MODAL_TF = tf;
   renderModalTFs();
-  requestAnimationFrame(() => renderCanvasChart());
+  setTimeout(renderCanvasChart, 0);
 }
 
 function renderModalTFs(){
@@ -1561,11 +1560,13 @@ function renderCanvasChart(){
   if(status) status.textContent = '';
 
   // Size canvas to actual pixel dimensions
-  const rect = canvas.parentElement.getBoundingClientRect();
-  const W = rect.width || 800;
-  const H = rect.height || 500;
+  const parent = canvas.parentElement;
+  const W = parent.offsetWidth || parent.clientWidth || 800;
+  const H = parent.offsetHeight || parent.clientHeight || 500;
   canvas.width  = W;
   canvas.height = H;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
   const ctx = canvas.getContext('2d');
 
   const isDark = !document.body.classList.contains('light-mode');
