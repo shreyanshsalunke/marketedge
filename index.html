@@ -257,6 +257,7 @@ a.pill:hover{border-color:var(--accent);color:var(--accent)}
 .mc-btn{font-family:var(--font-display);font-size:11px;font-weight:600;letter-spacing:.08em;padding:8px 20px;border-radius:6px;cursor:pointer;border:1px solid var(--border);color:var(--text3);background:var(--bg3);transition:all .2s;display:flex;align-items:center;gap:6px}
 .mc-btn:hover{color:var(--text2);border-color:var(--border2)}
 .mc-btn.bullish.active{background:var(--bull-bg);color:var(--bull);border-color:var(--bull2)}
+.mc-btn.qullamaggie.active{background:var(--bull-bg);color:var(--bull);border-color:var(--bull2)}
 .mc-btn.bearish.active{background:var(--bear-bg);color:var(--bear);border-color:var(--bear2)}
 .mc-btn.choppy.active{background:var(--neut-bg);color:var(--neut);border-color:var(--neut)}
 
@@ -443,7 +444,10 @@ a.pill:hover{border-color:var(--accent);color:var(--accent)}
 <div class="pane" id="pane-screener">
   <!-- Market condition selector -->
   <div id="mc-bar">
-    <div class="mc-btn bullish active" data-mc="bullish">📈 Swing Setups</div>
+    <div class="mc-btn bullish active" data-mc="qullamaggie">⚡ Qullamaggie</div>
+    <div class="mc-btn bullish" data-mc="minervini">📐 Minervini</div>
+    <div class="mc-btn bullish" data-mc="oneil">📊 O'Neil/IBD</div>
+    <div class="mc-btn bullish" data-mc="weinstein">📈 Weinstein</div>
     <div class="mc-btn bearish" data-mc="bearish">🚫 Stage 4 Avoid</div>
   </div>
   <!-- Regime warning banner -->
@@ -560,7 +564,7 @@ const MOCK = {
 let DATA = MOCK;
 let ACTIVE_TF = 'd1';
 let ACTIVE_MODE = 'swing';
-let ACTIVE_MC = 'bullish';
+let ACTIVE_MC = 'qullamaggie';
 let ACTIVE_STRAT = 'ALL';
 
 // ── PANE 1: MARKET ───────────────────────────────────────────────────────────
@@ -705,14 +709,24 @@ function renderSectorRotation(){
 
 // ── PANE 3: SCREENER ─────────────────────────────────────────────────────────
 const STRATEGIES = {
-  bullish: [
+  qullamaggie: [
+    { key:'ALL',      label:'All',            cls:'bull-strat' },
+    { key:'EP',       label:'Episodic Pivot', cls:'bull-strat' },
+    { key:'FLAG',     label:'Bull Flag',      cls:'bull-strat' },
+    { key:'EMA_PULL', label:'EMA Pullback',   cls:'bull-strat' },
+  ],
+  minervini: [
     { key:'ALL',      label:'All',            cls:'bull-strat' },
     { key:'VCP',      label:'VCP',            cls:'bull-strat' },
-    { key:'FLAG',     label:'Bull Flag',      cls:'bull-strat' },
-    { key:'EP',       label:'Episodic Pivot', cls:'bull-strat' },
+  ],
+  oneil: [
+    { key:'ALL',      label:'All',            cls:'bull-strat' },
     { key:'BASE',     label:'Base Breakout',  cls:'bull-strat' },
     { key:'PP',       label:'Pocket Pivot',   cls:'bull-strat' },
-    { key:'EMA_PULL', label:'EMA Pullback',   cls:'bull-strat' },
+  ],
+  weinstein: [
+    { key:'ALL',      label:'All',            cls:'bull-strat' },
+    { key:'STAGE2',   label:'Stage 2',        cls:'bull-strat' },
   ],
   bearish: [
     { key:'ALL',        label:'All',               cls:'bear-strat' },
@@ -749,6 +763,7 @@ const STRAT_LABELS = {
   OB_BOUNCE:      'Oversold Bounce',
   SUPPORT:        'Support Bounce',
   VOL_SQUEEZE:    'Vol Squeeze',
+  STAGE2:         'Stage 2 Breakout',
   CANSLIM:        'CANSLIM',
   NH_EARNINGS:    'New Highs + Earnings',
   LEADER_PULLBACK:'Leader Pullback',
@@ -759,7 +774,7 @@ const STRAT_LABELS = {
 
 // Strategy badge color class
 function stratClass(key){
-  const bull=['VCP','HTF','EP','BASE','PP','EMA_PULL','GC','STAGE1_BO','STAGE2'];
+  const bull=['VCP','HTF','EP','BASE','PP','EMA_PULL','FLAG','STAGE2','GC','STAGE1_BO'];
   const bear=['BREAKDOWN','SHORT_EP','DC','DEAD_CAT'];
   if(bull.includes(key))return'VCP';   // reuse green style
   if(bear.includes(key))return'BEAR';
@@ -817,9 +832,8 @@ function renderScreenerGrid(){
   if(ACTIVE_MODE==='lt'){ renderLongTerm(); return; }
   renderRegimeWarning();
 
-  const dataKey={bullish:'swing',bearish:'bearish',choppy:'choppy'}[ACTIVE_MC]||'swing';
-  const CORE_SWING = new Set(['VCP','FLAG','EP','BASE','PP','EMA_PULL']);
-  let all = (DATA[dataKey]||[]).filter(s => dataKey!=='swing' || CORE_SWING.has(s.strategy));
+  const dataKey={qullamaggie:'qullamaggie',minervini:'minervini',oneil:'oneil',weinstein:'weinstein',bearish:'bearish',choppy:'choppy'}[ACTIVE_MC]||'qullamaggie';
+  let all = DATA[dataKey]||[];
   // Sector filter
   if(ACTIVE_SECTOR==='LEADING'){
     const leading=getLeadingSectors();
@@ -827,7 +841,7 @@ function renderScreenerGrid(){
   } else if(ACTIVE_SECTOR!=='ALL'){
   }
   const filtered=ACTIVE_STRAT==='ALL'?all:all.filter(s=>s.strategy===ACTIVE_STRAT);
-  const label={bullish:'Bullish',bearish:'Bearish',choppy:'Choppy'}[ACTIVE_MC];
+  const label={qullamaggie:'Qullamaggie',minervini:'Minervini',oneil:"O'Neil/IBD",weinstein:'Weinstein',bearish:'Bearish',choppy:'Choppy'}[ACTIVE_MC]||ACTIVE_MC;
   const stratLabel=ACTIVE_STRAT==='ALL'?'All Setups':STRAT_LABELS[ACTIVE_STRAT]||ACTIVE_STRAT;
   document.getElementById('screener-meta').textContent=
     `${filtered.length} setups · ${label} · ${stratLabel} · Ranked by RS · US + Canada`;
@@ -942,7 +956,7 @@ function toggleWatchlist(ticker){
   const i=WATCHLIST.findIndex(w=>w.ticker===ticker);
   if(i>=0) WATCHLIST.splice(i,1);
   else {
-    const dataKey={bullish:'swing',bearish:'bearish',choppy:'choppy'}[ACTIVE_MC]||'swing';
+    const dataKey={qullamaggie:'qullamaggie',minervini:'minervini',oneil:'oneil',weinstein:'weinstein',bearish:'bearish',choppy:'choppy'}[ACTIVE_MC]||'qullamaggie';
     const all=[...(DATA[dataKey]||[]),...(DATA.longterm||[])];
     const s=all.find(x=>x.ticker===ticker);
     if(s) WATCHLIST.push({ticker,name:s.name||ticker,score:s.score||s.canslim||0,strategy:s.strategy||'',sector:s.sector||'',price:s.price||0,addedAt:new Date().toISOString()});
@@ -1108,7 +1122,7 @@ function renderRegimeWarning(){
 
 // ── EXPORT TO CSV ─────────────────────────────────────────────────────────────
 function exportCSV(){
-  const dataKey={bullish:'swing',bearish:'bearish',choppy:'choppy'}[ACTIVE_MC]||'swing';
+  const dataKey={qullamaggie:'qullamaggie',minervini:'minervini',oneil:'oneil',weinstein:'weinstein',bearish:'bearish',choppy:'choppy'}[ACTIVE_MC]||'qullamaggie';
   const rows=DATA[dataKey]||[];
   const headers=['Ticker','Name','Score','RS','Strategy','Status','EPS%','Rev%','Sector','Price'];
   const csv=[headers.join(','),...rows.map(s=>[s.ticker,`"${s.name||''}"`,s.score||'',s.rs||'',s.strategy||'',s.status||'',s.eps||'',s.rev||'',`"${s.sector||''}"`,s.price||''].join(','))].join('\n');
