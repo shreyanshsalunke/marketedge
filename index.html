@@ -472,7 +472,6 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
 .tf-modal.active{background:var(--bg4);color:var(--accent);border-color:var(--accent)}
 
 </style>
-<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
 <div id="loading">
@@ -1548,111 +1547,102 @@ function setModalTF(tf){
 }
 
 function initLWChart(){
-  const container = document.getElementById('modal-chart-container');
-  if(!container) return;
-  container.innerHTML = '';
-  if(lwChart){ lwChart.remove(); lwChart=null; }
-
-  const isDark = !document.body.classList.contains('light-mode');
-  lwChart = LightweightCharts.createChart(container, {
-    width: container.offsetWidth,
-    height: container.offsetHeight,
-    layout: {
-      background: { color: isDark ? '#131722' : '#ffffff' },
-      textColor: isDark ? '#8b949e' : '#6b7a8d',
-      fontSize: 11,
-      fontFamily: "'JetBrains Mono', monospace",
-    },
-    grid: {
-      vertLines: { color: isDark ? '#1e2433' : '#e2e7ef' },
-      horzLines: { color: isDark ? '#1e2433' : '#e2e7ef' },
-    },
-    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-    rightPriceScale: { borderColor: isDark ? '#30363d' : '#e2e7ef' },
-    timeScale: {
-      borderColor: isDark ? '#30363d' : '#e2e7ef',
-      timeVisible: true,
-      secondsVisible: false,
-    },
-  });
-
-  lwCandleSeries = lwChart.addCandlestickSeries({
-    upColor: '#3fb950',
-    downColor: '#f85149',
-    borderUpColor: '#3fb950',
-    borderDownColor: '#f85149',
-    wickUpColor: '#3fb950',
-    wickDownColor: '#f85149',
-    priceScaleId: 'right',
-  });
-
-  lwVolSeries = lwChart.addHistogramSeries({
-    priceFormat: { type: 'volume' },
-    priceScaleId: 'volume',
-    scaleMargins: { top: 0.8, bottom: 0 },
-  });
-
-  lwChart.priceScale('volume').applyOptions({
-    scaleMargins: { top: 0.8, bottom: 0 },
-  });
-
-  window.addEventListener('resize', () => {
-    if(lwChart && container.offsetWidth > 0){
-      lwChart.applyOptions({ width: container.offsetWidth, height: container.offsetHeight });
-    }
-  });
+  // Handled inside loadChartData via TV widget
 }
 
-async function loadChartData(){
+function loadChartData(){
   const tfObj = MODAL_TFS.find(t => t.label === MODAL_TF) || MODAL_TFS[1];
-  const statusEl = document.getElementById('modal-chart-status');
-  if(statusEl) statusEl.textContent = 'Loading...';
+  const container = document.getElementById('modal-chart-container');
+  if(!container) return;
 
-  try {
-    const end = Math.floor(Date.now()/1000);
-    const start = end - tfObj.days * 86400;
+  // Map our TF labels to TradingView interval codes
+  const intervalMap = {
+    'Daily · 3M':   'D',
+    'Daily · 6M':   'D',
+    'Daily · 1Y':   'D',
+    'Weekly · 2Y':  'W',
+    'Monthly · 5Y': 'M',
+  };
 
-    // CORS proxy to bypass browser CORS block on Yahoo Finance
-    const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${MODAL_TICKER}`
-      + `?interval=${tfObj.yf}&period1=${start}&period2=${end}`;
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yfUrl)}`;
+  // Range map for TradingView date range
+  const rangeMap = {
+    'Daily · 3M':   '3M',
+    'Daily · 6M':   '6M',
+    'Daily · 1Y':   '12M',
+    'Weekly · 2Y':  '24M',
+    'Monthly · 5Y': '60M',
+  };
 
-    const resp = await fetch(proxyUrl);
-    const wrapper = await resp.json();
-    const json = JSON.parse(wrapper.contents);
-    const result = json?.chart?.result?.[0];
-    if(!result) throw new Error('No data');
+  const interval = intervalMap[MODAL_TF] || 'D';
+  const range    = rangeMap[MODAL_TF]    || '6M';
+  const isDark   = !document.body.classList.contains('light-mode');
 
-    const times = result.timestamp;
-    const q = result.indicators.quote[0];
-    const opens=q.open, highs=q.high, lows=q.low, closes=q.close, vols=q.volume;
+  container.innerHTML = `<div id="tv-widget-container" style="width:100%;height:100%"></div>`;
 
-    const candles = [], volumes = [];
-    for(let i=0;i<times.length;i++){
-      if(opens[i]==null||closes[i]==null) continue;
-      const t = times[i];
-      candles.push({
-        time: t,
-        open:  +opens[i].toFixed(2),
-        high:  +highs[i].toFixed(2),
-        low:   +lows[i].toFixed(2),
-        close: +closes[i].toFixed(2)
-      });
-      volumes.push({
-        time: t,
-        value: vols[i]||0,
-        color: closes[i]>=opens[i] ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)'
-      });
-    }
+  // Load TV script once, then create widget
+  function createWidget(){
+    new TradingView.MediumWidget({
+      container_id: 'tv-widget-container',
+      symbols: [[MODAL_TICKER, MODAL_TICKER+'|'+interval]],
+      chartOnly: false,
+      width: '100%',
+      height: '100%',
+      locale: 'en',
+      colorTheme: isDark ? 'dark' : 'light',
+      autosize: true,
+      showVolume: true,
+      showMA: false,
+      hideDateRanges: false,
+      hideMarketStatus: false,
+      hideSymbolLogo: false,
+      scalePosition: 'right',
+      scaleMode: 'Normal',
+      fontFamily: 'JetBrains Mono, monospace',
+      fontSize: '10',
+      noTimeScale: false,
+      valuesTracking: '1',
+      changeMode: 'price-and-percent',
+      chartType: 'candlesticks',
+      maLineColor: '#2962FF',
+      maLineWidth: 1,
+      maLength: 9,
+      headerFontSize: 'medium',
+      lineWidth: 2,
+      lineType: 0,
+      dateRanges: [range+'|'+interval+'|'+range],
+    });
+  }
 
-    if(lwCandleSeries) lwCandleSeries.setData(candles);
-    if(lwVolSeries) lwVolSeries.setData(volumes);
-    if(lwChart) lwChart.timeScale().fitContent();
-    if(statusEl) statusEl.textContent = '';
-
-  } catch(e) {
-    if(statusEl) statusEl.textContent = 'Could not load chart — open in TradingView ↗';
-    console.error('Chart error:', e);
+  if(window.TradingView && window.TradingView.MediumWidget){
+    createWidget();
+  } else {
+    const s = document.createElement('script');
+    s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
+    s.async = true;
+    s.onload = createWidget;
+    // Fallback to basic widget if MediumWidget fails
+    s.onerror = function(){
+      container.innerHTML = `
+        <div style="width:100%;height:100%">
+          <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></scr` + `ipt>
+          <div id="tv-adv-chart"></div>
+          <script>
+            new TradingView.widget({
+              container_id:"tv-adv-chart",
+              symbol:"${MODAL_TICKER}",
+              interval:"${interval}",
+              theme:"${isDark?'dark':'light'}",
+              style:"1",
+              locale:"en",
+              width:"100%",
+              height:"100%",
+              enable_publishing:false,
+              studies:["Volume@tv-basicstudies"]
+            });
+          </scr` + `ipt>
+        </div>`;
+    };
+    document.head.appendChild(s);
   }
 }
 
