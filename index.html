@@ -1604,18 +1604,22 @@ function initLWChart(){
 }
 
 async function loadChartData(){
-  const tfObj = MODAL_TFS.find(t => t.label === MODAL_TF) || MODAL_TFS[4];
+  const tfObj = MODAL_TFS.find(t => t.label === MODAL_TF) || MODAL_TFS[1];
   const statusEl = document.getElementById('modal-chart-status');
   if(statusEl) statusEl.textContent = 'Loading...';
 
   try {
     const end = Math.floor(Date.now()/1000);
     const start = end - tfObj.days * 86400;
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${MODAL_TICKER}`
-      + `?interval=${tfObj.yf}&period1=${start}&period2=${end}&events=history`;
 
-    const resp = await fetch(url);
-    const json = await resp.json();
+    // CORS proxy to bypass browser CORS block on Yahoo Finance
+    const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${MODAL_TICKER}`
+      + `?interval=${tfObj.yf}&period1=${start}&period2=${end}`;
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yfUrl)}`;
+
+    const resp = await fetch(proxyUrl);
+    const wrapper = await resp.json();
+    const json = JSON.parse(wrapper.contents);
     const result = json?.chart?.result?.[0];
     if(!result) throw new Error('No data');
 
@@ -1625,10 +1629,20 @@ async function loadChartData(){
 
     const candles = [], volumes = [];
     for(let i=0;i<times.length;i++){
-      if(!opens[i]||!closes[i]) continue;
+      if(opens[i]==null||closes[i]==null) continue;
       const t = times[i];
-      candles.push({ time:t, open:+opens[i].toFixed(2), high:+highs[i].toFixed(2), low:+lows[i].toFixed(2), close:+closes[i].toFixed(2) });
-      volumes.push({ time:t, value:vols[i]||0, color: closes[i]>=opens[i] ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)' });
+      candles.push({
+        time: t,
+        open:  +opens[i].toFixed(2),
+        high:  +highs[i].toFixed(2),
+        low:   +lows[i].toFixed(2),
+        close: +closes[i].toFixed(2)
+      });
+      volumes.push({
+        time: t,
+        value: vols[i]||0,
+        color: closes[i]>=opens[i] ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)'
+      });
     }
 
     if(lwCandleSeries) lwCandleSeries.setData(candles);
@@ -1637,8 +1651,8 @@ async function loadChartData(){
     if(statusEl) statusEl.textContent = '';
 
   } catch(e) {
-    if(statusEl) statusEl.textContent = 'Could not load data — try View on TradingView ↗';
-    console.error('Chart load error:', e);
+    if(statusEl) statusEl.textContent = 'Could not load chart — open in TradingView ↗';
+    console.error('Chart error:', e);
   }
 }
 
@@ -1646,7 +1660,7 @@ function renderModalTFs(){
   const bar = document.getElementById('modal-tfs');
   if(!bar) return;
   bar.innerHTML = MODAL_TFS.map(tf =>
-    `<button class="tf-modal${MODAL_TF===tf.tv?' active':''}" onclick="setModalTF('${tf.tv}')">${tf.label}</button>`
+    `<button class="tf-modal${MODAL_TF===tf.label?' active':''}" onclick="setModalTF('${tf.label}')">${tf.label}</button>`
   ).join('');
 }
 
