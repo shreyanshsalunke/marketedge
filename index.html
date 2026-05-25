@@ -889,6 +889,8 @@ function switchMC(mc){
 
 
 function renderScreenerGrid(){
+  renderScreenerSectorBar();
+  updateRegimeBanner();
   if(ACTIVE_MODE==='lt'){ renderLongTerm(); return; }
   renderRegimeWarning();
 
@@ -1297,7 +1299,7 @@ function renderScreenerSectorBar(){
   bar.querySelectorAll('.sec-pill').forEach(b=>{
     b.addEventListener('click',()=>{
       ACTIVE_SCREENER_SECTOR=b.dataset.sec;
-      renderScreener();
+      renderScreenerGrid();
     });
   });
 }
