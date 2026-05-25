@@ -1770,6 +1770,31 @@ function loadModalIframe(){
 }
 
 
+
+// ── CARD CLICK → TRADINGVIEW ─────────────────────────────────────────────────
+document.addEventListener('click', function(e){
+  const card = e.target.closest('.scard');
+  if(!card) return;
+  if(e.target.closest('a')) return;
+  if(e.target.closest('button')) return;
+  const ticker = card.dataset.ticker;
+  if(!ticker) return;
+
+  if(window.innerWidth <= 768){
+    // Mobile: first tap expands, second tap opens TradingView
+    if(!card.classList.contains('tapped')){
+      e.preventDefault();
+      e.stopPropagation();
+      document.querySelectorAll('.scard.tapped').forEach(c => c.classList.remove('tapped'));
+      card.classList.add('tapped');
+    } else {
+      window.open('https://www.tradingview.com/chart/?symbol=' + ticker, '_blank');
+    }
+  } else {
+    window.open('https://www.tradingview.com/chart/?symbol=' + ticker, '_blank');
+  }
+}, true);
+
 </script>
 
 
