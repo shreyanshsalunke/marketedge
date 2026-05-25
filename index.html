@@ -1347,7 +1347,7 @@ document.querySelectorAll('.tf-btn').forEach(btn=>{
     renderSectorMap();
     renderSectorRotation();
     // Re-render sector filter if visible
-    if(document.getElementById('sector-filter-bar').style.display!=='none'){
+    if(document.getElementById('sector-filter-bar')?.style.display!=='none'){
       renderSectorFilter();
     }
   });
