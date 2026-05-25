@@ -48,11 +48,9 @@ INDEX_TICKERS = {
     "IWM": ("Russell 2000","US", "index"),
     "DIA": ("Dow Jones",   "US", "index"),
     "VIX": ("CBOE VIX",    "US", "vix"),
-    "XIU.TO": ("TSX 60",   "CA", "index"),
     "BTC-USD": ("Bitcoin", "BTC","crypto"),
     "ETH-USD": ("Ethereum","ETH","crypto"),
 }
-
 SECTOR_TICKERS = {
     "XLK":  ("Technology",     "💻"),
     "XLC":  ("Communication",  "📡"),
@@ -97,6 +95,15 @@ def load_config() -> dict:
         print("  ✗  No POLYGON_API_KEY found.")
         print("     Add to ~/.marketedge_config: POLYGON_API_KEY=your_key")
         sys.exit(1)
+    # FMP key is optional but enables quarterly EPS/Rev data
+    fmp_key = os.environ.get("FMP_API_KEY", cfg.get("FMP_API_KEY",""))
+    if fmp_key:
+        print("  ✓  FMP API key found — quarterly fundamentals enabled")
+    else:
+        print("  ⚠  No FMP_API_KEY — using TTM fundamentals only")
+        print("     Get a free key at financialmodelingprep.com and add:")
+        print("     FMP_API_KEY=your_key to ~/.marketedge_config")
+    cfg["FMP_API_KEY"] = fmp_key
     return cfg
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -473,7 +480,252 @@ def enrich_fundamentals(tickers: list[str], cache: dict) -> dict:
     save_sector_cache(out)
     return out
 
-# ─── RS RANKING ───────────────────────────────────────────────────────────────
+# ─── FMP COMPREHENSIVE FUNDAMENTALS ──────────────────────────────────────────
+def fetch_fmp_full(ticker: str, fmp_key: str) -> dict:
+    """
+    Fetch quarterly + annual fundamentals + shares float from FMP.
+
+    Covers:
+      C — MRQ EPS vs same Q prior year, 3-quarter acceleration chain
+      A — Annual EPS growing 3 consecutive years, annual EPS stability
+      S — Float (shares outstanding), share buybacks trend
+      Profitability — MRQ EPS > 0
+    """
+    result = {
+        # Quarterly (C criteria)
+        "mrq_eps_growth":    None,
+        "mrq_rev_growth":    None,
+        "eps_accelerating":  False,
+        "rev_accelerating":  False,
+        "eps_accel_3q":      False,   # 3 consecutive quarters of acceleration
+        "rev_accel_3q":      False,
+        "eps_positive":      False,
+        "mrq_eps":           None,
+        "mrq_rev":           None,
+        # Annual (A criteria)
+        "annual_eps_growth_3y": None,   # 3-year compound EPS growth %
+        "annual_eps_stable":    False,  # EPS grew all 3 prior years
+        "annual_rev_growth_3y": None,
+        # Supply (S criteria)
+        "shares_outstanding": None,     # millions
+        "float_category":     None,     # "small" <50M, "mid" <200M, "large" >200M
+        "buyback_trend":      False,    # shares declining YoY (company buying back)
+        # Meta
+        "q_data_available":  False,
+        "a_data_available":  False,
+    }
+    if not fmp_key:
+        return result
+
+    def safe_eps(q): return q.get("epsdiluted") or q.get("eps") or 0.0
+    def safe_rev(q): return q.get("revenue") or 0.0
+    def safe_shares(q): return q.get("weightedAverageShsOutDil") or q.get("weightedAverageShsOut") or 0
+
+    # ── QUARTERLY DATA (C criteria) ───────────────────────────────────────────
+    try:
+        url = f"https://financialmodelingprep.com/api/v3/income-statement/{ticker}"
+        r = requests.get(url, params={"period":"quarter","limit":13,"apikey":fmp_key}, timeout=15)
+        if r.ok:
+            qdata = r.json()
+            if isinstance(qdata, list) and len(qdata) >= 5:
+                # Q0=MRQ, Q1=prior, Q2=2 quarters ago, Q3=3 quarters ago
+                # Q4=same Q last year, Q5=same Q as Q1 last year, etc.
+                eps = [safe_eps(q) for q in qdata]
+                rev = [safe_rev(q) for q in qdata]
+                shr = [safe_shares(q) for q in qdata]
+
+                result["mrq_eps"]      = round(eps[0], 4)
+                result["eps_positive"] = eps[0] > 0
+                result["mrq_rev"]      = rev[0]
+
+                # MRQ growth vs same quarter 1 year ago
+                if len(eps) > 4 and eps[4] != 0:
+                    result["mrq_eps_growth"] = round((eps[0]-eps[4])/abs(eps[4])*100, 1)
+                if len(rev) > 4 and rev[4] > 0:
+                    result["mrq_rev_growth"] = round((rev[0]-rev[4])/rev[4]*100, 1)
+
+                # Acceleration: compute YoY growth for last 3 quarters
+                eps_growths, rev_growths = [], []
+                for i in range(3):         # Q0, Q1, Q2
+                    ya = i + 4             # same quarter 1 year ago
+                    if len(eps) > ya and eps[ya] != 0:
+                        eps_growths.append((eps[i]-eps[ya])/abs(eps[ya])*100)
+                    else:
+                        eps_growths.append(None)
+                    if len(rev) > ya and rev[ya] > 0:
+                        rev_growths.append((rev[i]-rev[ya])/rev[ya]*100)
+                    else:
+                        rev_growths.append(None)
+
+                # One-quarter acceleration (Q0 > Q1)
+                if eps_growths[0] is not None and eps_growths[1] is not None:
+                    result["eps_accelerating"] = eps_growths[0] > eps_growths[1]
+                if rev_growths[0] is not None and rev_growths[1] is not None:
+                    result["rev_accelerating"] = rev_growths[0] > rev_growths[1]
+
+                # Three-quarter acceleration chain (Q0 > Q1 > Q2)
+                if all(g is not None for g in eps_growths):
+                    result["eps_accel_3q"] = eps_growths[0] > eps_growths[1] > eps_growths[2]
+                if all(g is not None for g in rev_growths):
+                    result["rev_accel_3q"] = rev_growths[0] > rev_growths[1] > rev_growths[2]
+
+                # Float / buyback trend (S criteria)
+                if shr[0] > 0:
+                    result["shares_outstanding"] = round(shr[0] / 1e6, 1)  # millions
+                    sh_m = shr[0] / 1e6
+                    result["float_category"] = ("small" if sh_m < 50
+                                                else "mid" if sh_m < 200
+                                                else "large")
+                    # Buyback: shares declining vs 4 quarters ago
+                    if len(shr) > 4 and shr[4] > 0:
+                        result["buyback_trend"] = shr[0] < shr[4] * 0.98
+
+                result["q_data_available"] = True
+    except: pass
+
+    # ── ANNUAL DATA (A criteria) ──────────────────────────────────────────────
+    try:
+        url = f"https://financialmodelingprep.com/api/v3/income-statement/{ticker}"
+        r = requests.get(url, params={"period":"annual","limit":5,"apikey":fmp_key}, timeout=15)
+        if r.ok:
+            adata = r.json()
+            if isinstance(adata, list) and len(adata) >= 4:
+                ann_eps = [safe_eps(q) for q in adata]   # newest first
+                ann_rev = [safe_rev(q) for q in adata]
+                ann_shr = [safe_shares(q) for q in adata]
+
+                # 3-year compound EPS growth (Y0 vs Y3)
+                if ann_eps[3] != 0 and ann_eps[0] != 0:
+                    cagr_eps = ((ann_eps[0]/abs(ann_eps[3]))**(1/3) - 1)*100
+                    result["annual_eps_growth_3y"] = round(cagr_eps, 1)
+
+                # 3-year compound Rev growth
+                if ann_rev[3] > 0 and ann_rev[0] > 0:
+                    cagr_rev = ((ann_rev[0]/ann_rev[3])**(1/3) - 1)*100
+                    result["annual_rev_growth_3y"] = round(cagr_rev, 1)
+
+                # Annual EPS stable: each of last 3 years grew YoY
+                # Y0>Y1, Y1>Y2, Y2>Y3 (all growing, no down years)
+                grew = all(
+                    ann_eps[i] > 0 and ann_eps[i+1] > 0 and ann_eps[i] > ann_eps[i+1]
+                    for i in range(3)
+                )
+                result["annual_eps_stable"] = grew
+
+                # Shares declining trend (buyback confirmation from annual)
+                if not result["buyback_trend"] and len(ann_shr) >= 3 and ann_shr[0] > 0:
+                    result["buyback_trend"] = ann_shr[0] < ann_shr[2] * 0.97
+
+                result["a_data_available"] = True
+    except: pass
+
+    return result
+
+
+def compute_distribution_days(spy_df: pd.DataFrame, qqq_df: pd.DataFrame) -> dict:
+    """
+    O'Neil distribution day count: down day on above-average volume on SPY/QQQ.
+    Count over last 25 sessions. 4+ = caution, 6+ = likely market top.
+    Also computes follow-through day (FTD): big up day on volume after a low.
+    """
+    result = {
+        "spy_dist_days": 0,
+        "qqq_dist_days": 0,
+        "combined_dist": 0,
+        "market_under_pressure": False,
+        "follow_through_day": False,
+        "ftd_days_ago": None,
+    }
+    def count_dist(df, window=25):
+        if df is None or len(df) < window + 20: return 0
+        tail = df.tail(window + 20)
+        vol_avg = float(tail["Volume"].rolling(50, min_periods=20).mean().iloc[-window-1])
+        count = 0
+        for i in range(-window, 0):
+            c  = float(df["Close"].iloc[i])
+            o  = float(df["Open"].iloc[i])
+            v  = float(df["Volume"].iloc[i])
+            pc = float(df["Close"].iloc[i-1])
+            # Distribution: close lower than prior close, on above-average volume
+            # O'Neil also counts stalling days (closes near high but in upper range on big vol)
+            if c < pc and v > vol_avg * 1.05:
+                count += 1
+        return count
+
+    try:
+        sd = count_dist(spy_df)
+        qd = count_dist(qqq_df)
+        result["spy_dist_days"] = sd
+        result["qqq_dist_days"] = qd
+        result["combined_dist"] = max(sd, qd)
+        result["market_under_pressure"] = max(sd, qd) >= 4
+    except: pass
+
+    # Follow-Through Day: big up day (≥1.7%) on higher volume, day 4+ after a low
+    try:
+        if spy_df is not None and len(spy_df) >= 30:
+            # Find most recent low
+            lows = spy_df["Close"].tail(40)
+            low_idx = lows.idxmin()
+            low_pos = list(lows.index).index(low_idx)
+            bars_since_low = len(lows) - 1 - low_pos
+            if bars_since_low >= 4:
+                # Check last 5 bars for a FTD
+                for i in range(-5, 0):
+                    c  = float(spy_df["Close"].iloc[i])
+                    pc = float(spy_df["Close"].iloc[i-1])
+                    v  = float(spy_df["Volume"].iloc[i])
+                    va = float(spy_df["Volume"].rolling(50).mean().iloc[i])
+                    gain = (c/pc - 1)*100
+                    if gain >= 1.7 and v > va:
+                        result["follow_through_day"] = True
+                        result["ftd_days_ago"] = abs(i)
+                        break
+    except: pass
+
+    return result
+
+
+def enrich_with_fmp(hit_tickers: list[str], fmp_key: str, cache: dict) -> dict:
+    """
+    Fetch comprehensive FMP data for all scan hits.
+    Two API calls per ticker (quarterly + annual) = ~2 req per stock.
+    FMP free: 250 req/day → handles ~120 tickers/day comfortably.
+    Data cached for 2 days to avoid burning quota on repeated runs.
+    """
+    if not fmp_key:
+        return cache
+
+    fmp_needed = []
+    now = datetime.now()
+    for t in hit_tickers:
+        si = cache.get(t, {})
+        last_fmp = si.get("_fmp_fetched")
+        if last_fmp:
+            try:
+                age = (now - datetime.fromisoformat(last_fmp)).days
+                if age < 2: continue
+            except: pass
+        fmp_needed.append(t)
+
+    if not fmp_needed:
+        print(f"  ✓  FMP data: all cached ({len(hit_tickers)} tickers)")
+        return cache
+
+    print(f"  ↓  FMP comprehensive fundamentals for {len(fmp_needed)} tickers…")
+    out = dict(cache)
+    for i, t in enumerate(fmp_needed):
+        fmp = fetch_fmp_full(t, fmp_key)
+        si = out.get(t, {})
+        si.update({**fmp, "_fmp_fetched": now.isoformat()})
+        out[t] = si
+        time.sleep(0.6)   # ~100 tickers/min, well within free tier
+        if i > 0 and i % 20 == 0:
+            print(f"     … {i}/{len(fmp_needed)}")
+            save_sector_cache(out)
+
+    save_sector_cache(out)
+    return out
 def compute_rs_ranks(data: dict, valid: list) -> dict:
     rs_map = {t: rs_raw(data[t]["Close"]) for t in valid if t in data}
     rs_arr = np.array(list(rs_map.values()))
@@ -486,338 +738,585 @@ def base_result(ticker, daily, rs_pctile, score, status, tags, extra, scan, cach
     si = cache.get(ticker, {})
     wt = weeks_tight(daily)
     rs_l = rs_line(daily, _SPY, CFG["chart_bars"])
+    # Prefer quarterly MRQ data over TTM when available
+    eps_val = si.get("mrq_eps_growth") if si.get("q_data_available") else si.get("eps_growth", 0)
+    rev_val = si.get("mrq_rev_growth") if si.get("q_data_available") else si.get("rev_growth", 0)
     return {
-        "ticker":      ticker,
-        "name":        si.get("name", ticker),
-        "sector":      si.get("sector",""),
-        "industry":    si.get("industry",""),
-        "price":       round(float(daily["Close"].iloc[-1]), 2),
-        "rs_pctile":   rs_pctile,
-        "rs":          rs_pctile,
-        "eps_growth":  si.get("eps_growth", 0),
-        "rev_growth":  si.get("rev_growth", 0),
-        "eps":         si.get("eps_growth", 0),
-        "rev":         si.get("rev_growth", 0),
-        "inst":        si.get("inst_own", 0),
-        "short_float": si.get("short_float", None),
-        "sf":          si.get("short_float", None),
-        "score":       score,
-        "status":      status,
-        "tags":        tags,
-        "chart":       ohlc_chart(daily, CFG["chart_bars"]),
-        "rs_line":     rs_l,
-        "weeks_tight": wt,
-        "wt":          wt,
-        "scan":        scan,
-        "scanned_at":  datetime.now(timezone.utc).isoformat(),
+        "ticker":          ticker,
+        "name":            si.get("name", ticker),
+        "sector":          si.get("sector",""),
+        "industry":        si.get("industry",""),
+        "price":           round(float(daily["Close"].iloc[-1]), 2),
+        "rs_pctile":       rs_pctile,
+        "rs":              rs_pctile,
+        "eps_growth":      eps_val or 0,
+        "rev_growth":      rev_val or 0,
+        "eps":             eps_val or 0,
+        "rev":             rev_val or 0,
+        "inst":            si.get("inst_own", 0),
+        "short_float":     si.get("short_float", None),
+        "sf":              si.get("short_float", None),
+        "eps_accel":       si.get("eps_accelerating", False),
+        "rev_accel":       si.get("rev_accelerating", False),
+        "eps_positive":    si.get("eps_positive", None),
+        "q_data":          si.get("q_data_available", False),
+        "score":           score,
+        "status":          status,
+        "tags":            tags,
+        "chart":           ohlc_chart(daily, CFG["chart_bars"]),
+        "rs_line":         rs_l,
+        "weeks_tight":     wt,
+        "wt":              wt,
+        "scan":            scan,
+        "scanned_at":      datetime.now(timezone.utc).isoformat(),
         **extra,
     }
 
 def canslim_ok(ticker, rs_pctile, cache) -> bool:
+    """
+    O'Neil CANSLIM gate — as complete as free data allows.
+    C: MRQ EPS ≥20% YoY, profitable
+    A: Annual EPS stable (grew each of last 3 years) OR 3yr CAGR ≥15%
+    RS: ≥80th percentile
+    Both EPS and revenue growing required.
+    """
     if rs_pctile < 80: return False
     si = cache.get(ticker, {})
-    return (si.get("eps_growth",0) or 0) >= 20 or (si.get("rev_growth",0) or 0) >= 20
+    q_avail = si.get("q_data_available", False)
+    a_avail = si.get("a_data_available", False)
+
+    # C criteria — quarterly precision
+    if q_avail:
+        if not si.get("eps_positive", True): return False
+        eps_g = si.get("mrq_eps_growth") or 0
+        rev_g = si.get("mrq_rev_growth") or 0
+        if eps_g < 20: return False
+        if rev_g < 15: return False
+    else:
+        # Fallback TTM
+        if (si.get("eps_growth", 0) or 0) < 20: return False
+        if (si.get("rev_growth", 0) or 0) < 15: return False
+
+    # A criteria — annual stability check
+    if a_avail:
+        stable = si.get("annual_eps_stable", False)
+        cagr   = si.get("annual_eps_growth_3y") or 0
+        # Must have either 3 consecutive growing years OR 3yr CAGR ≥15%
+        if not stable and cagr < 15: return False
+
+    return True
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  BULLISH SCANS
 # ══════════════════════════════════════════════════════════════════════════════
 
-def scan_vcp(ticker, daily, rs_pctile, cache) -> dict | None:
+# ══════════════════════════════════════════════════════════════════════════════
+#  CORE BULLISH SCANS  (6 setups — kept tight, no noise)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Shared helpers ─────────────────────────────────────────────────────────────
+def _adr(daily, n=14):
+    """Average Daily Range % over n days."""
+    return float(((daily["High"]/daily["Low"]-1)*100).rolling(n).mean().iloc[-1])
+
+def _extension_pct(price, daily):
+    """How far % above the 52w low is the stock — proxy for how extended it is."""
+    low52 = float(daily["Low"].rolling(min(252,len(daily)), min_periods=50).min().iloc[-1])
+    return (price - low52) / low52 * 100 if low52 > 0 else 0
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SCAN 1 — VCP (Volatility Contraction Pattern)
+# Minervini: prior uptrend ≥30%, price > 150 > 200 SMA, 2-3 contractions each
+# ≥⅓ tighter than last, volume drying each contraction, near 52w high.
+# ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+#  METHODOLOGY SCANS — 4 pure implementations
+#  Each trader's exact criteria, no compromises between them
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Shared helper ──────────────────────────────────────────────────────────────
+def _adr(daily, n=14):
+    return float(((daily["High"]/daily["Low"]-1)*100).rolling(n).mean().iloc[-1])
+
+def _extension_pct(price, daily):
+    low52 = float(daily["Low"].rolling(min(252,len(daily)), min_periods=50).min().iloc[-1])
+    return (price - low52) / low52 * 100 if low52 > 0 else 0
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  QULLAMAGGIE — EP, Bull Flag, EMA Pullback
+#  Core rules: high ADR, momentum, RS leader, tight setups
+#  No fundamental requirement — he is purely technical for swing trades
+#  Uses 10 EMA and 20 EMA (not 9/21)
+# ══════════════════════════════════════════════════════════════════════════════
+def scan_qullamaggie(ticker, daily, rs_pctile, cache) -> list[dict]:
+    results = []
+    if not basic_ok(daily): return results
+    close = daily["Close"]; price = float(close.iloc[-1])
+    if len(daily) < 40: return results
+
+    stock_adr = _adr(daily)
+    s50 = sma(close, 50)
+    s50_val = float(s50.iloc[-1])
+    e10 = ema(close, 10)
+    e20 = ema(close, 20)
+    e10_val = float(e10.iloc[-1])
+    e20_val = float(e20.iloc[-1])
+
+    # ── 1. EPISODIC PIVOT ──────────────────────────────────────────────────
+    # Qullamaggie: gap 10%+ on 3x+ volume from a basing area, RS top 10%
+    if rs_pctile >= 80 and len(daily) >= 40:
+        for i in range(len(daily)-2, max(0, len(daily)-62), -1):
+            gap_pct = (float(daily["Open"].iloc[i]) / float(daily["Close"].iloc[i-1]) - 1) * 100
+            if gap_pct < 10: continue
+            vol_pre = float(daily["Volume"].iloc[max(0,i-10):i].mean()) if i >= 5 else float(daily["Volume"].mean())
+            vol_ratio = float(daily["Volume"].iloc[i]) / max(vol_pre, 1)
+            if vol_ratio < 3.0: continue   # Qullamaggie wants 3x+ not just 2.5x
+            gap_open = float(daily["Open"].iloc[i])
+            bars_since = len(daily) - 1 - i
+            if bars_since > 30: continue
+            if price < gap_open * 0.97: continue  # must hold above gap open
+            # Pre-gap base: must have been consolidating (not running) before gap
+            if i >= 15:
+                pre = daily.iloc[max(0,i-20):i]
+                pre_range = (float(pre["High"].max()) - float(pre["Low"].min())) / float(pre["Close"].mean()) * 100
+                if pre_range > 25: continue   # was extended, not basing
+            score = round(rs_pctile*.35 + min(100,gap_pct*4)*.25 +
+                         min(100,vol_ratio*12)*.20 + max(0,100-bars_since*3)*.20, 1)
+            status = "READY" if score>=72 and bars_since<=10 else "GOOD" if score>=57 else "DEVELOPING"
+            tags = [f"EP gap +{gap_pct:.0f}%", f"Vol {vol_ratio:.1f}x", "Holding gap"]
+            if bars_since <= 3: tags.append("Fresh EP")
+            results.append(base_result(ticker, daily, rs_pctile, score, status, tags,
+                {"strategy":"EP","methodology":"Qullamaggie",
+                 "gap_pct":round(gap_pct,1),"vol_ratio":round(vol_ratio,2),
+                 "bars_since_gap":bars_since,"gap_open":round(gap_open,2),
+                 "pivot":round(gap_open,2),"from_high_pct":round(max(0,(gap_open-price)/gap_open*100),1)},
+                "Episodic Pivot", cache))
+            break
+
+    # ── 2. BULL FLAG ───────────────────────────────────────────────────────
+    # Qullamaggie: ADR 3%+, pole 15%+ in ≤15 bars, tight flag, volume drying
+    if rs_pctile >= 65 and stock_adr >= 3.0 and price >= s50_val * 0.96:
+        best = None
+        for flag_len in range(5, 21):
+            if len(daily) < flag_len + 5: continue
+            flag = daily.tail(flag_len)
+            f_cls = flag["Close"].values; f_lows = flag["Low"].values
+            f_vols = flag["Volume"].values
+            f_hi = float(flag["High"].max()); f_lo = float(flag["Low"].min())
+            f_mid = float(flag["Close"].mean())
+            if f_mid <= 0: continue
+            f_range = (f_hi-f_lo)/f_mid*100
+            if f_range > 15: continue
+            drift = (float(f_cls[-1])-float(f_cls[0]))/float(f_cls[0])*100
+            if drift > 3 or drift < -12: continue
+            # Price above 10 EMA throughout (Qullamaggie rule)
+            e10_flag = e10.iloc[-flag_len:].values
+            ema_breaks = sum(1 for i in range(len(f_cls)) if f_cls[i] < e10_flag[i]*0.985)
+            if ema_breaks > flag_len//3: continue
+            half = max(1, flag_len//2)
+            if float(min(f_lows[half:])) < float(min(f_lows[:half]))*0.97: continue
+            vol_contracting = float(np.mean(f_vols[half:])) < float(np.mean(f_vols[:half]))
+            for pole_len in range(5, 16):
+                if len(daily) < flag_len+pole_len: break
+                pole = daily.iloc[-(flag_len+pole_len):-flag_len]
+                if len(pole) < 4: continue
+                green = sum(1 for i in range(len(pole))
+                           if float(pole["Close"].iloc[i]) >= float(pole["Open"].iloc[i]))
+                if green/len(pole) < 0.60: continue
+                pole_lo = float(pole["Low"].min()); pole_top = float(pole["High"].max())
+                if pole_lo <= 0: continue
+                pole_gain = (pole_top-pole_lo)/pole_lo*100
+                if pole_gain < 15: continue
+                pole_close = float(pole["Close"].iloc[-1])
+                straightness = (pole_close-pole_lo)/(pole_top-pole_lo) if pole_top>pole_lo else 0
+                if straightness < 0.55: continue
+                if f_range > pole_gain*0.45: continue
+                vol_flag = float(flag["Volume"].mean()); vol_pole = float(pole["Volume"].mean())
+                vol_ratio = vol_flag/max(vol_pole,1)
+                if vol_ratio > 0.85: continue
+                from_top = (pole_top-price)/pole_top*100
+                if from_top > 8 or from_top < -3: continue
+                score = round(min(100,pole_gain/80*100)*.28 + max(0,100-f_range*5)*.22 +
+                             max(0,(1-vol_ratio)*100)*.18 + max(0,100-ema_breaks*15)*.12 +
+                             rs_pctile*.20 + (8 if vol_contracting else 0), 1)
+                if best is None or score > best["score"]:
+                    status = "READY" if score>=70 and from_top<=3 else "GOOD" if score>=55 else "DEVELOPING"
+                    tags = [f"Pole +{pole_gain:.0f}%", f"Flag {flag_len}d"]
+                    if vol_ratio < 0.5: tags.append("Vol dried up")
+                    if vol_contracting: tags.append("Vol contracting")
+                    if from_top <= 3: tags.append("Near breakout")
+                    best = base_result(ticker, daily, rs_pctile, score, status, tags,
+                        {"strategy":"FLAG","methodology":"Qullamaggie",
+                         "pole_gain_pct":round(pole_gain,1),"flag_days":flag_len,
+                         "flag_range_pct":round(f_range,1),"vol_ratio":round(vol_ratio,2),
+                         "pivot":round(pole_top,2),"from_high_pct":round(from_top,1)},
+                        "Bull Flag", cache)
+        if best: results.append(best)
+
+    # ── 3. EMA PULLBACK ────────────────────────────────────────────────────
+    # Qullamaggie: pullback to 10 or 20 EMA, low volume, stock in uptrend
+    # He specifically uses 10/20 EMA, not 9/21
+    if rs_pctile >= 65 and stock_adr >= 2.5:
+        if e10_val > e20_val and price >= s50_val * 0.97:
+            dist10 = (price-e10_val)/e10_val*100
+            dist20 = (price-e20_val)/e20_val*100
+            near10 = -3 <= dist10 <= 6
+            near20 = -3 <= dist20 <= 8
+            if near10 or near20:
+                vol_today = float(daily["Volume"].iloc[-1])
+                vol_avg = float(daily["Volume"].rolling(20).mean().iloc[-1])
+                vol_ratio = vol_today/max(vol_avg,1)
+                if vol_ratio <= 1.3:
+                    # Volume declining into pullback
+                    if len(daily) >= 3:
+                        v3 = [float(daily["Volume"].iloc[i]) for i in range(-3,0)]
+                        if v3[-1] > v3[0]*1.3: pass  # volume rising = skip
+                        else:
+                            # Prior uptrend
+                            prior_gain = (price-float(close.iloc[-21]))/float(close.iloc[-21])*100 if len(close)>=21 else 5
+                            if prior_gain >= 0:
+                                best_dist = dist10 if near10 and abs(dist10)<abs(dist20) else dist20
+                                ema_type = "10 EMA" if near10 and abs(dist10)<abs(dist20) else "20 EMA"
+                                score = round(rs_pctile*.35 + max(0,100-abs(best_dist)*12)*.25 +
+                                             max(0,(1-vol_ratio)*80)*.20 +
+                                             max(0,100-(price/s50_val-1)*100)*.20, 1)
+                                status = "READY" if score>=65 else "GOOD" if score>=50 else "DEVELOPING"
+                                results.append(base_result(ticker, daily, rs_pctile, score, status,
+                                    [f"Pullback to {ema_type}", "Low vol pullback", "Uptrend intact"],
+                                    {"strategy":"EMA_PULL","methodology":"Qullamaggie",
+                                     "ema10":round(e10_val,2),"ema20":round(e20_val,2),
+                                     "dist_ema_pct":round(abs(best_dist),1),"vol_ratio":round(vol_ratio,2),
+                                     "pivot":round(float(close.rolling(20).max().iloc[-1]),2),
+                                     "from_high_pct":round(abs(best_dist),1)},
+                                    "EMA Pullback", cache))
+    return results
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  MINERVINI — VCP (Volatility Contraction Pattern)
+#  SEPA criteria: exact uptrend template, strict contractions
+#  Requires fundamentals: EPS 25%+, Rev 20%+
+# ══════════════════════════════════════════════════════════════════════════════
+def scan_minervini(ticker, daily, rs_pctile, cache) -> dict | None:
     if not basic_ok(daily): return None
     close = daily["Close"]; price = float(close.iloc[-1])
-    if len(close) < 150: return None
-    s50 = float(sma(close,50).iloc[-1]); s150 = float(sma(close,150).iloc[-1])
-    s200 = float(sma(close,200).iloc[-1]) if len(close)>=200 else s150*.98
-    if not (price > s150 > s200): return None
-    if price < s50 * 0.94: return None
-    high52 = float(daily["High"].rolling(min(252,len(daily)),min_periods=50).max().iloc[-1])
+    if len(close) < 200: return None
+    if rs_pctile < 80: return None   # Minervini SEPA requires RS 80+ strictly
+
+    # SEPA Uptrend Template — Minervini's exact requirements:
+    # 1. Price above 50 SMA, 150 SMA, and 200 SMA
+    # 2. 50 SMA above 150 SMA above 200 SMA (all in proper order)
+    # 3. 200 SMA trending up for at least 1 month
+    # 4. Price at least 30% above 52-week low
+    # 5. Price within 25% of 52-week high
+    s50  = float(sma(close, 50).iloc[-1])
+    s150 = float(sma(close, 150).iloc[-1])
+    s200 = float(sma(close, 200).iloc[-1])
+    s200_1m = float(sma(close, 200).iloc[-21])
+
+    # Strict MA stack — all must be in order
+    if not (price > s50 and price > s150 and price > s200): return None
+    if not (s50 > s150 and s150 > s200): return None
+    if s200 <= s200_1m * 0.998: return None   # 200 SMA must be rising
+
+    # Sector filter: Minervini focuses on growth stocks — not banks or utilities
+    si = cache.get(ticker, {})
+    industry = si.get("industry", "")
+    if industry in ("Banks—Diversified", "Banks—Regional", "Insurance—Life",
+                    "Insurance—Diversified", "Asset Management", "Capital Markets"): return None
+
+    high52 = float(daily["High"].rolling(252, min_periods=100).max().iloc[-1])
+    low52  = float(daily["Low"].rolling(252,  min_periods=100).min().iloc[-1])
     from_high = (high52-price)/high52*100
-    if from_high > 20: return None
-    bars = daily.tail(80)
+    from_low  = (price-low52)/low52*100
+
+    if from_high > 25: return None    # within 25% of 52w high
+    if from_low  < 30: return None    # at least 30% above 52w low
+
+    # Fundamentals — Minervini requires strong EPS and Revenue
+    # Only gate if we actually have data (not empty cache on first run)
+    si = cache.get(ticker, {})
+    q_avail = si.get("q_data_available", False)
+    eps_g = (si.get("mrq_eps_growth") if q_avail else si.get("eps_growth",0)) or 0
+    rev_g = (si.get("mrq_rev_growth") if q_avail else si.get("rev_growth",0)) or 0
+    has_data = bool(si.get("eps_growth") or si.get("mrq_eps_growth"))
+    if has_data:
+        if eps_g < 25 and rev_g < 20: return None
+        if q_avail and not si.get("eps_positive", True): return None
+
+    # VCP: 3 windows contracting — Minervini's 10/20/40 day framework
+    bars = daily.tail(100)
     def range_pct(n):
         sl = bars.tail(n); mid = float(sl["Close"].mean())
         return (float(sl["High"].max())-float(sl["Low"].min()))/mid*100 if mid>0 else 99
-    r10,r20,r40 = range_pct(10),range_pct(20),range_pct(40)
-    if not (r10 < r20 < r40): return None
-    if r10 > 12 or r40 < 15: return None
-    vol10 = float(bars["Volume"].tail(10).mean()); vol40 = float(bars["Volume"].tail(40).mean())
+    r10, r20, r40 = range_pct(10), range_pct(20), range_pct(40)
+
+    # Each window must be meaningfully tighter (≥10% tighter each step)
+    if not (r10 < r20*0.90 and r20 < r40*0.90): return None
+    if r10 > 10: return None    # Minervini: final contraction ≤10%
+    if r40 < 15: return None    # must have had prior range to contract from
+
+    # Volume must be clearly drying up — Minervini wants 40-50% below average
+    vol10 = float(bars["Volume"].tail(10).mean())
+    vol40 = float(bars["Volume"].tail(40).mean())
     vol_dry = vol10/max(vol40,1)
-    if vol_dry > 0.90: return None
-    contractions = 2 if r20 < r40*.75 else 1
-    if r10 < r20*.70: contractions += 1
-    score = round(rs_pctile*.35 + max(0,100-from_high*3)*.25 +
-                  max(0,100-r10*6)*.20 + max(0,(1-vol_dry)*100)*.10 +
-                  min(100,contractions*33)*.10, 1)
-    status = ("READY" if score>=68 and from_high<=5 and contractions>=2
-              else "GOOD" if score>=55 and from_high<=12 else "DEVELOPING")
+    if vol_dry > 0.75: return None   # Minervini: volume must dry up 25-40% below average
+
+    # Prior uptrend before base
+    low_pre = float(daily["Low"].iloc[-200:-60].min()) if len(daily)>=200 else low52
+    prior_run = (high52-low_pre)/low_pre*100 if low_pre>0 else 0
+    if prior_run < 30: return None
+
+    contractions = 1
+    if r20 < r40*0.75: contractions = 2
+    if r10 < r20*0.70: contractions = 3
+    if contractions < 2: return None
+
+    score = round(rs_pctile*.30 + max(0,100-from_high*3)*.20 +
+                 max(0,100-r10*8)*.20 + max(0,(1-vol_dry)*100)*.15 +
+                 min(100,contractions*33)*.10 + min(20,eps_g/5)*.05, 1)
+    status = ("READY" if score>=72 and from_high<=5 and contractions>=3
+              else "GOOD" if score>=58 and from_high<=12 else "DEVELOPING")
     tags = [f"{contractions} contractions", f"Range {r10:.0f}% tight"]
-    if vol_dry < 0.6: tags.append("Vol drying up")
-    if from_high <= 5: tags.append("Near pivot")
-    return base_result(ticker,daily,rs_pctile,score,status,tags,
-        {"strategy":"VCP","pivot":round(high52,2),"from_high_pct":round(from_high,1),
-         "range_10d":round(r10,1),"contractions":contractions,"vol_ratio":round(vol_dry,2),
-         "sma50":round(s50,2)},"VCP",cache)
+    if vol_dry < 0.5:   tags.append("Vol drying up")
+    if from_high <= 5:  tags.append("Near pivot")
+    if eps_g >= 25:     tags.append(f"EPS +{eps_g:.0f}%")
 
-def scan_high_tight_flag(ticker, daily, rs_pctile, cache) -> dict | None:
-    """O'Neil High Tight Flag: 100%+ gain in 4-8 weeks, then 10-25% pullback."""
+    return base_result(ticker, daily, rs_pctile, score, status, tags,
+        {"strategy":"VCP","methodology":"Minervini",
+         "pivot":round(high52,2),"from_high_pct":round(from_high,1),
+         "range_10d":round(r10,1),"range_20d":round(r20,1),"range_40d":round(r40,1),
+         "contractions":contractions,"vol_ratio":round(vol_dry,2),
+         "sma50":round(s50,2),"sma150":round(s150,2),"sma200":round(s200,2)},
+        "VCP", cache)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  O'NEIL / IBD — Base Breakout + Pocket Pivot
+#  C+A+N+S+L+I+M criteria applied to technical setups
+#  RS 80+, EPS 25%+, Rev 20%+, profitable, breakout volume required
+# ══════════════════════════════════════════════════════════════════════════════
+def scan_oneil(ticker, daily, rs_pctile, cache) -> list[dict]:
+    results = []
+    if not basic_ok(daily): return results
+    close = daily["Close"]; price = float(close.iloc[-1])
+    if len(daily) < 120: return results
+    if rs_pctile < 75: return results   # O'Neil: RS 80+ preferred
+
+    si = cache.get(ticker, {})
+    q_avail = si.get("q_data_available", False)
+    eps_g = (si.get("mrq_eps_growth") if q_avail else si.get("eps_growth",0)) or 0
+    rev_g = (si.get("mrq_rev_growth") if q_avail else si.get("rev_growth",0)) or 0
+    profitable = si.get("eps_positive", True) if q_avail else True
+
+    # O'Neil fundamental gate — only apply if we have real data
+    # If cache is empty (first run), let technical setup through and filter later
+    has_data = bool(si.get("eps_growth") or si.get("mrq_eps_growth"))
+    if has_data:
+        if not profitable: return results
+        if eps_g < 20 or rev_g < 15: return results
+
+    s50  = float(sma(close, 50).iloc[-1])
+    if price < s50 * 0.96: return results
+
+    # ── 1. BASE BREAKOUT ────────────────────────────────────────────────────
+    # O'Neil: 6+ weeks, ≤15% range, volume contraction, breakout on 40%+ vol
+    if len(close) >= 150:
+        s150 = float(sma(close, 150).iloc[-1])
+        # 150 SMA must be flat or rising (Stage 2)
+        sma150_ok = True
+        if len(close) >= 170:
+            s150_3w = float(sma(close, 150).iloc[-21])
+            sma150_ok = s150 >= s150_3w * 0.993
+
+        if sma150_ok:
+            # Prior uptrend ≥ 25% (O'Neil: stock must have had a prior advance)
+            if len(daily) >= 180:
+                low_pre    = float(daily["Low"].iloc[-180:-50].min())
+                high52_pre = float(daily["High"].iloc[-180:-20].max())
+                prior_run  = (high52_pre-low_pre)/low_pre*100 if low_pre>0 else 0
+            else:
+                prior_run = 25  # assume ok if not enough data
+
+            if prior_run >= 25:
+                weekly = daily.resample("W").agg(
+                    {"Open":"first","High":"max","Low":"min","Close":"last","Volume":"sum"}).dropna()
+                if len(weekly) >= 8:
+                    weekly["rng"]  = (weekly["High"]-weekly["Low"])/weekly["Close"]*100
+                    weekly["s50w"] = sma(weekly["Close"], 10)
+                    # Count tight weeks (non-consecutive ok — look at last 20 weeks)
+                    recent = weekly.tail(20)
+                    tight  = recent[(recent["rng"]<=18) & (recent["Close"]>=recent["s50w"]*0.93)]
+                    base_weeks = len(tight)
+
+                    if base_weeks >= 6:
+                        base_hi  = float(weekly.tail(base_weeks)["High"].max())
+                        base_lo  = float(weekly.tail(base_weeks)["Low"].min())
+                        base_mid = float(weekly.tail(base_weeks)["Close"].mean())
+                        base_range = (base_hi-base_lo)/base_mid*100 if base_mid>0 else 99
+
+                        if base_range <= 15:  # O'Neil: ≤15% flat base
+                            high52 = float(daily["High"].rolling(min(252,len(daily)),min_periods=50).max().iloc[-1])
+                            from_high = (high52-price)/high52*100
+
+                            if from_high <= 8:  # within 8% of pivot
+                                today_vol = float(daily["Volume"].iloc[-1])
+                                avg_vol20 = float(daily["Volume"].rolling(20).mean().iloc[-1])
+                                breakout_vol = today_vol/max(avg_vol20,1)
+
+                                # Hard gate: AT the pivot needs volume confirmation
+                                at_pivot_no_vol = (from_high <= 3 and breakout_vol < 1.4)
+                                if not at_pivot_no_vol:
+                                    vol_base  = float(weekly["Volume"].tail(base_weeks).mean())
+                                    vol_prior = float(weekly["Volume"].iloc[-(base_weeks+6):-base_weeks].mean()) \
+                                               if len(weekly)>base_weeks+6 else vol_base
+                                    vol_ratio = vol_base/max(vol_prior,1)
+
+                                    score = round(rs_pctile*.25 + max(0,100-base_range*5)*.20 +
+                                                 min(100,base_weeks/15*100)*.15 +
+                                                 max(0,(1-vol_ratio)*80)*.15 +
+                                                 max(0,100-from_high*10)*.15 +
+                                                 min(100,eps_g/2)*.10, 1)
+                                    bvol_sc = min(10, breakout_vol*6) if breakout_vol>=1.4 else 0
+                                    score = round(score + bvol_sc, 1)
+
+                                    status = ("READY" if score>=70 and from_high<=3 and breakout_vol>=1.4
+                                             else "GOOD" if score>=55 and from_high<=6 else "DEVELOPING")
+                                    tags = [f"{base_weeks}w base", f"Range {base_range:.0f}%"]
+                                    if breakout_vol >= 1.4: tags.append(f"Vol {breakout_vol:.1f}x ✓")
+                                    elif from_high <= 5:    tags.append("Near pivot — await vol")
+                                    if vol_ratio < 0.65:    tags.append("Vol dried up")
+                                    if eps_g >= 25:         tags.append(f"EPS +{eps_g:.0f}%")
+
+                                    results.append(base_result(ticker, daily, rs_pctile, score, status, tags,
+                                        {"strategy":"BASE","methodology":"O'Neil",
+                                         "pivot":round(high52,2),"from_high_pct":round(from_high,1),
+                                         "base_weeks":base_weeks,"base_range_pct":round(base_range,1),
+                                         "vol_ratio":round(vol_ratio,2),"breakout_vol":round(breakout_vol,2),
+                                         "sma50":round(s50,2)},
+                                        "Base Breakout", cache))
+
+    # ── 2. POCKET PIVOT ─────────────────────────────────────────────────────
+    # Gil/Morales (O'Neil methodology): up-day vol > max of last 10 down-day vols
+    # Must be within base or near 50 SMA — not extended
+    s150_val = float(sma(close, 150).iloc[-1]) if len(close)>=150 else s50
+    pct_above_50 = (price-s50)/s50*100
+    if price >= s50*0.96 and price >= s150_val*0.95 and pct_above_50 <= 20:
+        for lookback in range(1, 4):
+            idx = -lookback
+            if abs(idx)+11 > len(daily): continue
+            bar = daily.iloc[idx]
+            if float(bar["Close"]) < float(bar["Open"]): continue  # must be up day
+            vol_today = float(bar["Volume"])
+            prior = daily.iloc[idx-10:idx]
+            down_vols = [float(prior["Volume"].iloc[i]) for i in range(len(prior))
+                        if float(prior["Close"].iloc[i]) < float(prior["Open"].iloc[i])]
+            if len(down_vols) < 3: continue
+            max_down_vol = max(down_vols)
+            if vol_today <= max_down_vol: continue
+            vol_ratio = vol_today/max_down_vol
+            score = round(rs_pctile*.30 + min(100,vol_ratio*30)*.25 +
+                         max(0,100-pct_above_50*4)*.20 + max(0,100-lookback*20)*.15 +
+                         min(20,eps_g/5)*.10, 1)
+            status = "READY" if score>=65 and lookback==1 else "GOOD" if score>=52 else "DEVELOPING"
+            tags = [f"PP vol {vol_ratio:.1f}x", "Within base", f"EPS +{eps_g:.0f}%"]
+            if pct_above_50 < 5: tags.append("Near 50 SMA")
+            results.append(base_result(ticker, daily, rs_pctile, score, status, tags,
+                {"strategy":"PP","methodology":"O'Neil",
+                 "vol_ratio":round(vol_ratio,2),"bars_ago":lookback,
+                 "sma50":round(s50,2),"pct_above_50":round(pct_above_50,1),
+                 "pivot":round(price*1.05,2),"from_high_pct":round(pct_above_50,1)},
+                "Pocket Pivot", cache))
+            break
+
+    return results
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  WEINSTEIN — Stage 2 Breakout
+#  Purely technical — no fundamental requirement
+#  30-week SMA rising, price breaks out of Stage 1 base, volume expanding
+#  Works for any stock regardless of earnings
+# ══════════════════════════════════════════════════════════════════════════════
+def scan_weinstein(ticker, daily, rs_pctile, cache) -> dict | None:
     if not basic_ok(daily): return None
     close = daily["Close"]; price = float(close.iloc[-1])
-    if len(daily) < 60: return None
-    # Look for 100%+ gain in 4-8 weeks (20-40 bars)
-    for pole_len in range(20, 42, 2):
-        if len(daily) < pole_len + 5: continue
-        pole = daily.iloc[-(pole_len+10):-10]
-        if len(pole) < 15: continue
-        pole_lo = float(pole["Low"].min()); pole_hi = float(pole["High"].max())
-        if pole_lo <= 0: continue
-        pole_gain = (pole_hi-pole_lo)/pole_lo*100
-        if pole_gain < 100: continue
-        # Flag: last 10 bars, 10-25% pullback from pole high, tight
-        flag = daily.tail(10)
-        flag_lo = float(flag["Low"].min()); flag_hi = float(flag["High"].max())
-        pullback = (pole_hi-price)/pole_hi*100
-        flag_range = (flag_hi-flag_lo)/flag_lo*100 if flag_lo>0 else 99
-        if not (10 <= pullback <= 25 and flag_range <= 15): continue
-        vol_flag = float(flag["Volume"].mean()); vol_pole = float(pole["Volume"].mean())
-        vol_ratio = vol_flag/max(vol_pole,1)
-        if vol_ratio > 0.7: continue
-        score = round(rs_pctile*.30 + min(100,pole_gain/2)*.25 +
-                      max(0,100-pullback*3)*.25 + max(0,(1-vol_ratio)*100)*.20, 1)
-        status = "READY" if score>=72 else "GOOD" if score>=58 else "DEVELOPING"
-        return base_result(ticker,daily,rs_pctile,score,status,
-            [f"Pole +{pole_gain:.0f}%","Vol drying up","Near pivot"],
-            {"strategy":"HTF","pole_gain_pct":round(pole_gain,1),
-             "pullback_pct":round(pullback,1),"flag_range_pct":round(flag_range,1),
-             "vol_ratio":round(vol_ratio,2),"pivot":round(pole_hi,2)},"HTF",cache)
-    return None
+    if len(daily) < 200: return None
+    if rs_pctile < 50: return None   # Weinstein is purely technical, RS 50+ sufficient
 
-def scan_episodic_pivot(ticker, daily, rs_pctile, cache) -> dict | None:
-    """Qullamaggie EP/EGU: gap up 10%+ on volume 2x+, holds gap, RS leads."""
-    if not basic_ok(daily): return None
-    close = daily["Close"]; price = float(close.iloc[-1])
-    if len(daily) < 30: return None
-    # Find largest gap in last 60 bars
-    for i in range(len(daily)-2, max(0,len(daily)-62), -1):
-        gap_pct = (float(daily["Open"].iloc[i]) / float(daily["Close"].iloc[i-1]) - 1)*100
-        if gap_pct < 10: continue
-        vol_ratio = float(daily["Volume"].iloc[i]) / max(float(daily["Volume"].iloc[i-10:i].mean()),1)
-        if vol_ratio < 2.0: continue
-        # Price must still be above gap open (holding the gap)
-        gap_open = float(daily["Open"].iloc[i])
-        if price < gap_open * 0.97: continue
-        # Must be within 30 bars of the gap
-        bars_since = len(daily) - 1 - i
-        if bars_since > 30: continue
-        gain_since_gap = (price/gap_open-1)*100
-        score = round(rs_pctile*.35 + min(100,gap_pct*4)*.25 +
-                      min(100,vol_ratio*20)*.20 + max(0,100-bars_since*3)*.20, 1)
-        status = "READY" if score>=70 and bars_since<=10 else "GOOD" if score>=55 else "DEVELOPING"
-        return base_result(ticker,daily,rs_pctile,score,status,
-            [f"Gap +{gap_pct:.0f}%",f"Vol {vol_ratio:.1f}x avg","Holding gap"],
-            {"strategy":"EP","gap_pct":round(gap_pct,1),"vol_ratio":round(vol_ratio,2),
-             "bars_since_gap":bars_since,"gap_open":round(gap_open,2),
-             "from_high_pct":round(max(0,-gain_since_gap),1)},"EP/EGU",cache)
-    return None
+    weekly = daily.resample("W").agg(
+        {"High":"max","Low":"min","Close":"last","Volume":"sum"}).dropna()
+    if len(weekly) < 35: return None
 
-def scan_base_breakout(ticker, daily, rs_pctile, cache) -> dict | None:
-    """O'Neil/Weinstein base breakout: 6+ weeks flat, volume contraction, near pivot."""
-    if not basic_ok(daily): return None
-    close = daily["Close"]; price = float(close.iloc[-1])
-    if len(close) < 120: return None
-    s50 = float(sma(close,50).iloc[-1])
-    if price < s50 * 0.97: return None
-    weekly = daily.resample("W").agg({"Open":"first","High":"max","Low":"min","Close":"last","Volume":"sum"}).dropna()
-    if len(weekly) < 10: return None
-    weekly["rng"] = (weekly["High"]-weekly["Low"])/weekly["Close"]*100
-    weekly["s50w"] = sma(weekly["Close"],10)
-    base_weeks = 0
-    for i in range(len(weekly)-1, max(len(weekly)-52,0)-1, -1):
-        wc = float(weekly["Close"].iloc[i]); wr = float(weekly["rng"].iloc[i])
-        ws = float(weekly["s50w"].iloc[i]) if not pd.isna(weekly["s50w"].iloc[i]) else wc*.9
-        if wr <= 12 and wc >= ws*.96: base_weeks += 1
-        else: break
-    if base_weeks < 6: return None
-    base_sl = weekly.tail(base_weeks)
-    base_hi = float(base_sl["High"].max()); base_lo = float(base_sl["Low"].min())
-    base_mid = float(base_sl["Close"].mean())
-    if base_mid <= 0: return None
-    base_range = (base_hi-base_lo)/base_mid*100
-    if base_range > 15: return None
-    high52 = float(daily["High"].rolling(min(252,len(daily)),min_periods=50).max().iloc[-1])
-    from_high = (high52-price)/high52*100
-    if from_high > 7: return None
-    vol_base = float(weekly["Volume"].tail(base_weeks).mean())
-    vol_prior = float(weekly["Volume"].iloc[-(base_weeks+6):-base_weeks].mean()) if len(weekly)>base_weeks+6 else vol_base
-    vol_ratio = vol_base/max(vol_prior,1)
-    score = round(rs_pctile*.28 + max(0,100-base_range*5)*.22 +
-                  min(100,base_weeks/20*100)*.18 + max(0,(1-vol_ratio)*80)*.15 +
-                  max(0,100-from_high*12)*.17, 1)
-    status = ("READY" if score>=68 and from_high<=3 else "GOOD" if score>=54 and from_high<=6 else "DEVELOPING")
-    tags = [f"{base_weeks}w base",f"Range {base_range:.0f}%"]
-    if vol_ratio < 0.65: tags.append("Vol dried up")
-    if from_high <= 3: tags.append("At pivot")
-    elif from_high <= 5: tags.append("Near pivot")
-    return base_result(ticker,daily,rs_pctile,score,status,tags,
-        {"strategy":"BASE","pivot":round(high52,2),"from_high_pct":round(from_high,1),
-         "base_weeks":base_weeks,"base_range_pct":round(base_range,1),
-         "vol_ratio":round(vol_ratio,2),"sma50":round(s50,2)},"Base Breakout",cache)
+    w30 = sma(weekly["Close"], 30)
+    if pd.isna(w30.iloc[-1]): return None
+    sma30_now = float(w30.iloc[-1])
+    price_w   = float(weekly["Close"].iloc[-1])
 
-def scan_stage2(ticker, daily, rs_pctile, cache) -> dict | None:
-    """Weinstein Stage 2: price crosses 30-week SMA upward from Stage 1 base."""
-    if not basic_ok(daily): return None
-    close = daily["Close"]; price = float(close.iloc[-1])
-    if len(daily) < 160: return None
-    weekly = daily.resample("W").agg({"Close":"last","Volume":"sum"}).dropna()
-    if len(weekly) < 30: return None
-    w30 = sma(weekly["Close"],30)
-    if pd.isna(w30.iloc[-1]) or pd.isna(w30.iloc[-5]): return None
-    sma30_now = float(w30.iloc[-1]); sma30_4w = float(w30.iloc[-5])
-    price_w = float(weekly["Close"].iloc[-1])
-    # Stage 2 criteria: price > 30wk SMA AND 30wk SMA rising
-    if price_w <= sma30_now * 1.0: return None
-    if sma30_now <= sma30_4w: return None   # must be rising
-    # Must have just crossed or be in early Stage 2 (within 15 weeks)
-    crossed_weeks = 0
-    for i in range(len(weekly)-1, max(0,len(weekly)-20), -1):
+    # Stage 2: price above 30-week SMA
+    if price_w <= sma30_now * 1.00: return None  # must be clearly above
+
+    # 30-week SMA must be rising — this is Weinstein's core signal
+    sma30_8w  = float(w30.iloc[-9]) if len(w30)>=9 else sma30_now
+    sma30_4w  = float(w30.iloc[-5]) if len(w30)>=5 else sma30_now
+    if sma30_now <= sma30_8w * 1.001: return None  # must be clearly rising
+
+    # How many weeks in Stage 2 (above 30w SMA)
+    weeks_above = 0
+    for i in range(len(weekly)-1, max(0,len(weekly)-52), -1):
         if float(weekly["Close"].iloc[i]) > float(w30.iloc[i]):
-            crossed_weeks += 1
-        else: break
-    if crossed_weeks > 15 or crossed_weeks < 1: return None
-    # Volume should be expanding
+            weeks_above += 1
+        else:
+            break
+
+    # Early Stage 2 preferred (Weinstein: buy the breakout, not after 6 months)
+    if weeks_above > 20: return None   # Weinstein: buy early-to-mid Stage 2
+    if weeks_above < 1:  return None
+
+    # Stage 1 base before the breakout — not strictly required by Weinstein
+    # His core criteria is just: price above rising 30wk SMA, volume expanding
+
+    # Volume expanding on breakout (Weinstein: needs institutional buying)
     vol_recent = float(weekly["Volume"].tail(4).mean())
     vol_prior  = float(weekly["Volume"].iloc[-12:-4].mean()) if len(weekly)>=12 else vol_recent
     vol_ratio  = vol_recent/max(vol_prior,1)
-    score = round(rs_pctile*.35 + max(0,(sma30_now/sma30_4w-1)*1000)*.25 +
-                  max(0,100-crossed_weeks*5)*.20 + min(100,vol_ratio*60)*.20, 1)
-    status = "READY" if score>=65 and crossed_weeks<=6 else "GOOD" if score>=52 else "DEVELOPING"
-    return base_result(ticker,daily,rs_pctile,score,status,
-        [f"Stage 2 week {crossed_weeks}","30wk SMA rising",f"Vol ratio {vol_ratio:.1f}x"],
-        {"strategy":"STAGE2","sma30w":round(sma30_now,2),"crossed_weeks":crossed_weeks,
-         "vol_ratio":round(vol_ratio,2),"pivot":round(price*1.03,2)},"Stage 2",cache)
+    # No hard volume gate — score it instead (low vol = lower score)
 
-def scan_pocket_pivot(ticker, daily, rs_pctile, cache) -> dict | None:
-    """Gil/Morales PP: up-day volume exceeds max down-day volume in prior 10 days."""
-    if not basic_ok(daily): return None
-    close = daily["Close"]; price = float(close.iloc[-1])
-    if len(daily) < 60: return None
-    s50 = sma(close,50); s50_val = float(s50.iloc[-1])
-    if price < s50_val * 0.96: return None
-    # Check last 3 bars for pocket pivot
-    for lookback in range(1,4):
-        idx = -lookback
-        if abs(idx)+10 > len(daily): continue
-        bar = daily.iloc[idx]; up_day = float(bar["Close"]) >= float(bar["Open"])
-        if not up_day: continue
-        vol_today = float(bar["Volume"])
-        # Down-day volumes in prior 10 bars
-        prior = daily.iloc[idx-10:idx]
-        down_vols = [float(prior["Volume"].iloc[i]) for i in range(len(prior))
-                     if float(prior["Close"].iloc[i]) < float(prior["Open"].iloc[i])]
-        if len(down_vols) < 3: continue
-        max_down_vol = max(down_vols)
-        if vol_today <= max_down_vol: continue
-        # Valid pocket pivot
-        vol_ratio = vol_today/max_down_vol
-        score = round(rs_pctile*.35 + min(100,vol_ratio*30)*.25 +
-                      min(100,(price/s50_val-1)*200)*.20 + max(0,100-lookback*20)*.20, 1)
-        status = "READY" if score>=65 and lookback==1 else "GOOD" if score>=52 else "DEVELOPING"
-        return base_result(ticker,daily,rs_pctile,score,status,
-            [f"PP vol {vol_ratio:.1f}x down avg",f"Above 50 SMA","Strong accumulation"],
-            {"strategy":"PP","vol_ratio":round(vol_ratio,2),"bars_ago":lookback,
-             "sma50":round(s50_val,2),"pivot":round(price*1.05,2)},"Pocket Pivot",cache)
-    return None
+    # RS line should be strong (Weinstein uses Mansfield RS)
+    # We approximate: stock must be outperforming SPY over 26 weeks
+    rs_line_vals = rs_line(daily, _SPY, min(len(daily), 130))
+    rs_leading = False
+    if len(rs_line_vals) >= 26:
+        rs_now  = rs_line_vals[-1]
+        rs_26w  = rs_line_vals[-26]
+        rs_leading = rs_now >= rs_26w  # RS line rising = leading the market
 
-def scan_ema_pullback(ticker, daily, rs_pctile, cache) -> dict | None:
-    """Classic EMA pullback: uptrending stock pulling back to 9 or 21 EMA."""
-    if not basic_ok(daily): return None
-    close = daily["Close"]; price = float(close.iloc[-1])
-    if len(daily) < 60: return None
-    e9  = ema(close,9);  e9_val  = float(e9.iloc[-1])
-    e21 = ema(close,21); e21_val = float(e21.iloc[-1])
-    s50 = sma(close,50); s50_val = float(s50.iloc[-1])
-    # Must be in uptrend: price > 50 SMA, 9 EMA > 21 EMA
-    if not (price > s50_val * 0.98 and e9_val > e21_val): return None
-    # Currently touching or just above 9 or 21 EMA
-    dist_9  = (price-e9_val)/e9_val*100
-    dist_21 = (price-e21_val)/e21_val*100
-    if not ((-2 <= dist_9 <= 4) or (-2 <= dist_21 <= 5)): return None
-    # Volume should be below average (healthy pullback)
-    vol_today = float(daily["Volume"].iloc[-1])
-    vol_avg   = float(daily["Volume"].rolling(20).mean().iloc[-1])
-    vol_ratio = vol_today/max(vol_avg,1)
-    if vol_ratio > 1.2: return None  # not a high-volume selloff
-    # Prior uptrend: price higher than 4 weeks ago
-    if len(close) >= 20:
-        prior_price = float(close.iloc[-21])
-        prior_gain = (price-prior_price)/prior_price*100
-        if prior_gain < 5: return None
-    score = round(rs_pctile*.35 + max(0,100-abs(dist_9)*15)*.25 +
-                  max(0,(1-vol_ratio)*80)*.20 + max(0,100-(price/s50_val-1)*100)*.20, 1)
-    ema_type = "9 EMA" if abs(dist_9) < abs(dist_21) else "21 EMA"
-    status = "READY" if score>=65 else "GOOD" if score>=52 else "DEVELOPING"
-    return base_result(ticker,daily,rs_pctile,score,status,
-        [f"Pulling back to {ema_type}","Low volume pullback","Uptrend intact"],
-        {"strategy":"EMA_PULL","ema9":round(e9_val,2),"ema21":round(e21_val,2),
-         "sma50":round(s50_val,2),"dist_ema_pct":round(min(abs(dist_9),abs(dist_21)),1),
-         "pivot":round(float(close.rolling(20).max().iloc[-1]),2)},"EMA Pullback",cache)
+    sma30_slope_pct = (sma30_now - sma30_8w) / sma30_8w * 100
+    score = round(
+        rs_pctile * .40 +                              # RS (max 40)
+        min(20, max(0, sma30_slope_pct * 4)) +         # SMA30 slope (max 20)
+        max(0, 20 - weeks_above * 1.5) +               # earlier = better (max 20)
+        min(15, vol_ratio * 9) +                       # volume expansion (max 15)
+        (5 if rs_leading else 0),                      # RS line bonus (max 5)
+    1)
+    score = min(100, max(0, score))   # hard cap 0-100
 
-def scan_nr7(ticker, daily, rs_pctile, cache) -> dict | None:
-    """Connors NR7: narrowest daily range in 7 days — coiling before expansion."""
-    if not basic_ok(daily): return None
-    close = daily["Close"]; price = float(close.iloc[-1])
-    if len(daily) < 60: return None
-    s50 = float(sma(close,50).iloc[-1])
-    if price < s50 * 0.95: return None
-    # NR7: today's range is smallest of last 7 days
-    ranges = [(float(daily["High"].iloc[i])-float(daily["Low"].iloc[i]))
-              for i in range(-7,0)]
-    today_range = ranges[-1]
-    if today_range > min(ranges[:-1]): return None   # not the narrowest
-    # Must be in uptrend context (above 50 SMA, RS > 60)
-    if rs_pctile < 55: return None
-    nr7_count = sum(1 for i in range(-7,0)
-                    if (float(daily["High"].iloc[i])-float(daily["Low"].iloc[i])) == today_range
-                    or (float(daily["High"].iloc[i])-float(daily["Low"].iloc[i])) < ranges[-1]*1.1)
-    pivot = float(daily["High"].rolling(20).max().iloc[-1])
-    from_pivot = (pivot-price)/pivot*100
-    score = round(rs_pctile*.35 + max(0,(1-today_range/max(ranges[:-1]))*100)*.30 +
-                  max(0,100-from_pivot*8)*.20 + 15, 1)
-    status = "READY" if score>=65 and from_pivot<=5 else "GOOD" if score>=52 else "DEVELOPING"
-    return base_result(ticker,daily,rs_pctile,score,status,
-        ["NR7 coiling","Low volatility compression","Breakout pending"],
-        {"strategy":"NR7","range_pct":round(today_range/price*100,2),
-         "pivot":round(pivot,2),"from_high_pct":round(from_pivot,1)},"NR7",cache)
+    status = ("READY" if score>=65 and weeks_above<=6 and vol_ratio>=1.2
+              else "GOOD" if score>=52 and weeks_above<=15 else "DEVELOPING")
+    tags = [f"Stage 2 wk {weeks_above}", "30wk SMA rising"]
+    if vol_ratio >= 1.3:  tags.append(f"Vol {vol_ratio:.1f}x expanding")
+    if rs_leading:        tags.append("RS line leading")
+    if weeks_above <= 4:  tags.append("Early Stage 2")
 
-def scan_rs_new_high(ticker, daily, rs_pctile, cache) -> dict | None:
-    """O'Neil leading indicator: RS line making new high before or with price."""
-    if not basic_ok(daily): return None
-    close = daily["Close"]; price = float(close.iloc[-1])
-    if len(daily) < 60 or len(_SPY) < 60: return None
-    if rs_pctile < 75: return None
-    # Compute RS line
-    rs_l = rs_line(daily, _SPY, min(len(daily), 252))
-    if len(rs_l) < 20: return None
-    rs_arr = np.array(rs_l)
-    rs_current = rs_arr[-1]
-    rs_52w_high = np.max(rs_arr[:-2]) if len(rs_arr)>2 else rs_current
-    # RS at or very near new high
-    if rs_current < rs_52w_high * 0.995: return None
-    # Price need not be at new high (RS leading = the signal)
-    pivot = float(daily["High"].rolling(min(252,len(daily))).max().iloc[-1])
-    from_pivot = (pivot-price)/pivot*100
-    rs_lead_bars = 0  # how many bars RS has been above prior high
-    for i in range(len(rs_arr)-1, max(0,len(rs_arr)-20), -1):
-        if rs_arr[i] >= rs_52w_high*0.99: rs_lead_bars += 1
-        else: break
-    score = round(rs_pctile*.40 + max(0,(rs_current/rs_52w_high-1)*1000)*.30 +
-                  max(0,100-from_pivot*8)*.30, 1)
-    status = "READY" if score>=68 and from_pivot<=8 else "GOOD" if score>=55 else "DEVELOPING"
-    return base_result(ticker,daily,rs_pctile,score,status,
-        ["RS at new high","Leading the market","Strong relative momentum"],
-        {"strategy":"RS_HIGH","rs_lead_bars":rs_lead_bars,"pivot":round(pivot,2),
-         "from_high_pct":round(from_pivot,1)},"RS New High",cache)
+    return base_result(ticker, daily, rs_pctile, score, status, tags,
+        {"strategy":"STAGE2","methodology":"Weinstein",
+         "sma30w":round(sma30_now,2),"weeks_in_stage2":weeks_above,
+         "vol_ratio":round(vol_ratio,2),"sma30_slope":round(sma30_slope_pct,2),
+         "pivot":round(price_w*1.02,2),"from_high_pct":round((float(daily["High"].rolling(52,min_periods=10).max().iloc[-1])-price)/price*100,1)},
+        "Stage 2", cache)
 
-# ══════════════════════════════════════════════════════════════════════════════
+
+
 #  BEARISH SCANS
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1126,77 +1625,133 @@ def scan_vol_squeeze(ticker, daily, rs_pctile, cache) -> dict | None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def scan_canslim(ticker, daily, rs_pctile, cache) -> list[dict]:
-    """Run all 5 CANSLIM sub-scans, return list of matches (0 or 1 per sub-scan)."""
+    """Run all 5 CANSLIM sub-scans using comprehensive FMP data when available."""
     if not basic_ok(daily): return []
     close = daily["Close"]; price = float(close.iloc[-1])
     if len(daily) < 100: return []
     si = cache.get(ticker, {})
-    eps_g = si.get("eps_growth", 0) or 0
-    rev_g = si.get("rev_growth", 0) or 0
-    inst  = si.get("inst_own", 0) or 0
+
+    q_avail    = si.get("q_data_available", False)
+    a_avail    = si.get("a_data_available", False)
+    eps_g      = (si.get("mrq_eps_growth") if q_avail else si.get("eps_growth", 0)) or 0
+    rev_g      = (si.get("mrq_rev_growth") if q_avail else si.get("rev_growth", 0)) or 0
+    eps_accel  = si.get("eps_accelerating", False)
+    rev_accel  = si.get("rev_accelerating", False)
+    eps_3q     = si.get("eps_accel_3q", False)     # 3 consecutive quarters accelerating
+    rev_3q     = si.get("rev_accel_3q", False)
+    eps_pos    = si.get("eps_positive", True)
+    ann_stable = si.get("annual_eps_stable", False)
+    ann_cagr   = si.get("annual_eps_growth_3y") or 0
+    ann_rev_cagr = si.get("annual_rev_growth_3y") or 0
+    buyback    = si.get("buyback_trend", False)
+    float_cat  = si.get("float_category", "large")  # small/mid/large
+    inst       = si.get("inst_own", 0) or 0
+    mktcap     = si.get("mktcap", 0) or 0
+
+    if q_avail and not eps_pos: return []
+
     results = []
 
-    # 1. New Highs + Earnings (C+A+N criteria)
-    if eps_g >= 20 and rs_pctile >= 80:
+    def build_tags(base, extra_conditions):
+        t = list(base)
+        if eps_3q:      t.append("EPS accel 3Q ↑↑")
+        elif eps_accel: t.append("EPS accel ↑")
+        if rev_accel:   t.append("Rev accel ↑")
+        if ann_stable:  t.append("3yr EPS growth")
+        if buyback:     t.append("Buybacks ↑")
+        if float_cat == "small": t.append("Small float")
+        for cond in extra_conditions: t.append(cond)
+        return t
+
+    # S/L bonus points
+    float_bonus   = 8 if float_cat=="small" else 4 if float_cat=="mid" else 0
+    buyback_bonus = 5 if buyback else 0
+    annual_bonus  = 8 if ann_stable else (4 if ann_cagr >= 15 else 0)
+    accel_bonus   = 8 if eps_3q else (4 if eps_accel else 0)
+
+    # 1. New Highs + Earnings (C+A+N)
+    if eps_g >= 25 and rev_g >= 20 and rs_pctile >= 80:
         high52 = float(daily["High"].rolling(min(252,len(daily))).max().iloc[-1])
         from_high = (high52-price)/high52*100
         if from_high <= 8:
-            score = round(rs_pctile*.30 + min(100,eps_g/2)*.25 + min(100,rev_g/2)*.20 +
-                          max(0,100-from_high*8)*.25, 1)
-            results.append(base_result(ticker,daily,rs_pctile,score,
-                "READY" if score>=75 else "GOOD",
-                [f"EPS +{eps_g:.0f}%",f"RS {rs_pctile:.0f}th","Near 52w high"],
-                {"strategy":"NH_EARNINGS","canslim":score,"pattern":"New High",
-                 "from_high_pct":round(from_high,1),"inst":inst},"CANSLIM",cache))
+            s50_val = float(sma(close, 50).iloc[-1])
+            if price >= s50_val * 0.97:
+                score = round(
+                    rs_pctile*.28 + min(100,eps_g/1.5)*.22 + min(100,rev_g/1.5)*.18 +
+                    max(0,100-from_high*8)*.22 +
+                    accel_bonus*.04 + annual_bonus*.03 + float_bonus*.02 + buyback_bonus*.01,
+                1)
+                results.append(base_result(ticker,daily,rs_pctile,score,
+                    "READY" if score>=75 else "GOOD",
+                    build_tags([f"EPS +{eps_g:.0f}%", f"Rev +{rev_g:.0f}%", f"RS {rs_pctile:.0f}th"], []),
+                    {"strategy":"NH_EARNINGS","canslim":score,"pattern":"New High",
+                     "from_high_pct":round(from_high,1),"inst":inst},"CANSLIM",cache))
 
-    # 2. Market Leader Pullback (L+N criteria — first pullback to 50d)
-    if rs_pctile >= 75 and eps_g >= 15:
+    # 2. Market Leader Pullback (first pullback to 50d)
+    if rs_pctile >= 80 and eps_g >= 20 and rev_g >= 15:
         s50 = sma(close,50); s50_val = float(s50.iloc[-1])
         dist_50 = (price-s50_val)/s50_val*100
-        # First pullback: was well above 50 SMA 4 weeks ago
         s50_4w = float(s50.iloc[-21]) if len(s50)>=21 else s50_val
-        was_above = float(close.iloc[-21]) > s50_4w*1.05 if len(close)>=21 else False
+        was_above = float(close.iloc[-21]) > s50_4w*1.06 if len(close)>=21 else False
         if was_above and -2 <= dist_50 <= 5:
-            score = round(rs_pctile*.35 + max(0,(5-abs(dist_50))*12)*.25 +
-                          min(100,eps_g/2)*.20 + min(100,inst)*.20, 1)
+            score = round(
+                rs_pctile*.32 + max(0,(5-abs(dist_50))*12)*.25 +
+                min(100,eps_g/2)*.20 + min(100,rev_g/2)*.18 +
+                accel_bonus*.03 + annual_bonus*.02,
+            1)
             results.append(base_result(ticker,daily,rs_pctile,score,
                 "READY" if score>=72 else "GOOD",
-                [f"First 50d pullback",f"RS {rs_pctile:.0f}th",f"EPS +{eps_g:.0f}%"],
+                build_tags([f"First 50d pullback", f"RS {rs_pctile:.0f}th", f"EPS +{eps_g:.0f}%"], []),
                 {"strategy":"LEADER_PULLBACK","canslim":score,"pattern":"50d SMA Test",
                  "from_high_pct":round(dist_50,1),"inst":inst},"CANSLIM",cache))
 
-    # 3. Emerging Leader (small/mid cap + accelerating EPS + early Stage 2)
-    mktcap = si.get("mktcap",0) or 0
-    if eps_g >= 25 and rs_pctile >= 70 and mktcap < 10e9:
-        s200 = float(sma(close,200).iloc[-1]) if len(close)>=200 else price*.9
-        if price > s200:
-            score = round(rs_pctile*.30 + min(100,eps_g/1.5)*.30 +
-                          min(100,rev_g/1.5)*.20 + (20 if mktcap<2e9 else 10)*.20, 1)
+    # 3. Emerging Leader (small/mid cap + 3-quarter acceleration + early Stage 2)
+    if eps_g >= 30 and rev_g >= 25 and rs_pctile >= 75 and mktcap < 10e9:
+        s200_val = float(sma(close,200).iloc[-1]) if len(close)>=200 else price*.9
+        s50_val  = float(sma(close,50).iloc[-1])
+        if price > s200_val and price > s50_val * 0.97:
+            size_bonus = 20 if mktcap < 2e9 else 10
+            score = round(
+                rs_pctile*.28 + min(100,eps_g/1.5)*.28 +
+                min(100,rev_g/1.5)*.20 + size_bonus*.12 +
+                accel_bonus*.07 + float_bonus*.05,
+            1)
             results.append(base_result(ticker,daily,rs_pctile,score,
                 "READY" if score>=70 else "GOOD",
-                [f"Small cap leader",f"EPS +{eps_g:.0f}%",f"Stage 2 uptrend"],
+                build_tags([f"EPS +{eps_g:.0f}%", f"Rev +{rev_g:.0f}%", "Small cap leader"], []),
                 {"strategy":"EMERGING","canslim":score,"pattern":"Emerging Stage 2",
                  "from_high_pct":5.0,"inst":inst},"CANSLIM",cache))
 
-    # 4. Institutional Accumulation (I criteria — rising fund ownership)
-    if inst >= 50 and rs_pctile >= 65 and eps_g >= 10:
-        score = round(rs_pctile*.30 + min(100,inst)*.30 +
-                      min(100,eps_g/2)*.20 + min(100,rev_g/2)*.20, 1)
-        if score >= 60:
-            results.append(base_result(ticker,daily,rs_pctile,score,
-                "GOOD" if score>=68 else "DEVELOPING",
-                [f"Inst own {inst:.0f}%",f"EPS +{eps_g:.0f}%","Big money accumulating"],
-                {"strategy":"INST_ACCUM","canslim":score,"pattern":"Accumulation Base",
-                 "from_high_pct":8.0,"inst":inst},"CANSLIM",cache))
+    # 4. Institutional Accumulation — requires buyback confirmation when available
+    if inst >= 40 and rs_pctile >= 70 and eps_g >= 20 and rev_g >= 15:
+        s50_val = float(sma(close,50).iloc[-1])
+        if price >= s50_val * 0.97:
+            score = round(
+                rs_pctile*.28 + min(100,inst)*.22 +
+                min(100,eps_g/2)*.22 + min(100,rev_g/2)*.18 +
+                buyback_bonus*.05 + accel_bonus*.05,
+            1)
+            if score >= 65:
+                results.append(base_result(ticker,daily,rs_pctile,score,
+                    "GOOD" if score>=70 else "DEVELOPING",
+                    build_tags([f"Inst own {inst:.0f}%", f"EPS +{eps_g:.0f}%", f"Rev +{rev_g:.0f}%"], []),
+                    {"strategy":"INST_ACCUM","canslim":score,"pattern":"Accumulation Base",
+                     "from_high_pct":8.0,"inst":inst},"CANSLIM",cache))
 
-    # 5. Industry Group Leader (#1 or #2 by RS in their group)
-    if rs_pctile >= 85 and eps_g >= 15:
-        score = round(rs_pctile*.40 + min(100,eps_g/1.5)*.30 + min(100,rev_g/2)*.30, 1)
+    # 5. Industry Group Leader — top-tier RS + 3yr annual EPS growth
+    if rs_pctile >= 88 and eps_g >= 20 and rev_g >= 15:
+        high52 = float(daily["High"].rolling(min(252,len(daily))).max().iloc[-1])
+        from_high = (high52-price)/high52*100
+        score = round(
+            rs_pctile*.38 + min(100,eps_g/1.5)*.28 + min(100,rev_g/2)*.22 +
+            annual_bonus*.07 + accel_bonus*.05,
+        1)
         results.append(base_result(ticker,daily,rs_pctile,score,
-            "READY" if score>=78 else "GOOD",
-            [f"RS {rs_pctile:.0f}th percentile",f"EPS +{eps_g:.0f}%","Sector leadership"],
+            "READY" if score>=80 else "GOOD",
+            build_tags([f"RS {rs_pctile:.0f}th percentile", f"EPS +{eps_g:.0f}%", "Sector leader"],
+                       [f"Annual CAGR +{ann_cagr:.0f}%"] if ann_cagr > 0 else []),
             {"strategy":"INDUSTRY_LEADER","canslim":score,"pattern":"Market Leader",
-             "from_high_pct":5.0,"inst":inst},"CANSLIM",cache))
+             "from_high_pct":round(from_high,1),"inst":inst},"CANSLIM",cache))
 
     return results
 
@@ -1240,8 +1795,8 @@ def run(test_mode=False):
     cfg = load_config()
     KEY = cfg.get("POLYGON_API_KEY","")
     us_tickers  = get_us_tickers(KEY, test_mode)
-    ca_tickers  = get_ca_tickers(test_mode)
-    all_tickers = list(dict.fromkeys(us_tickers + ca_tickers +
+    ca_tickers  = []   # US only
+    all_tickers = list(dict.fromkeys(us_tickers +
                    list(SECTOR_TICKERS.keys()) + ["SPY","QQQ","VIX"]))
     data = download_ohlcv(all_tickers)
     global _SPY
@@ -1251,10 +1806,23 @@ def run(test_mode=False):
     indexes = fetch_indexes(data)
     sectors = fetch_sectors(data, spy_df)
     regime_spy = data.get("SPY", pd.DataFrame())
-    if len(regime_spy) >= 25:
-        s10 = float(sma(regime_spy["Close"],10).iloc[-1])
-        s20 = float(sma(regime_spy["Close"],20).iloc[-1])
-        regime = "BULLISH" if s10>s20*1.002 else "BEARISH" if s10<s20*.998 else "NEUTRAL"
+    if len(regime_spy) >= 200:
+        s50  = float(sma(regime_spy["Close"], 50).iloc[-1])
+        s200 = float(sma(regime_spy["Close"], 200).iloc[-1])
+        s50_3w = float(sma(regime_spy["Close"], 50).iloc[-15])
+        # BULLISH: SPY > 50 SMA > 200 SMA and 50 SMA rising
+        # BEARISH: SPY < 50 SMA < 200 SMA or 50 SMA declining sharply
+        spy_price = float(regime_spy["Close"].iloc[-1])
+        if spy_price > s50 and s50 > s200 and s50 >= s50_3w * 0.998:
+            regime = "BULLISH"
+        elif spy_price < s50 and s50 < s200 * 1.01:
+            regime = "BEARISH"
+        else:
+            regime = "NEUTRAL"
+    elif len(regime_spy) >= 50:
+        s50  = float(sma(regime_spy["Close"], 50).iloc[-1])
+        spy_price = float(regime_spy["Close"].iloc[-1])
+        regime = "BULLISH" if spy_price > s50 * 1.01 else "BEARISH" if spy_price < s50 * 0.98 else "NEUTRAL"
     else:
         regime = "NEUTRAL"
     print("  ∑  Filtering universe…")
@@ -1267,12 +1835,70 @@ def run(test_mode=False):
     breadth = compute_breadth(data, valid)
     print(f"     MCO: {breadth.get('mcclellan','—')}  "
           f"%>50SMA: {breadth.get('pct_above_50sma','—')}%  VIX: {breadth.get('vix','—')}")
+
+    # Distribution days (O'Neil M criteria)
+    print("  ∑  Computing distribution days…")
+    qqq_df = data.get("QQQ", pd.DataFrame())
+    dist = compute_distribution_days(spy_df, qqq_df)
+    breadth["spy_dist_days"]   = dist["spy_dist_days"]
+    breadth["qqq_dist_days"]   = dist["qqq_dist_days"]
+    breadth["combined_dist"]   = dist["combined_dist"]
+    breadth["market_under_pressure"] = dist["market_under_pressure"]
+    breadth["follow_through_day"]    = dist["follow_through_day"]
+    print(f"     SPY dist days: {dist['spy_dist_days']}  QQQ: {dist['qqq_dist_days']}"
+          f"  {'⚠ Market under pressure' if dist['market_under_pressure'] else '✓ OK'}"
+          f"{'  FTD detected' if dist['follow_through_day'] else ''}")
     cache = load_sector_cache()
-    BULLISH_SCANS = [
-        ("VCP",scan_vcp),("HTF",scan_high_tight_flag),("EP",scan_episodic_pivot),
-        ("BASE",scan_base_breakout),("STAGE2",scan_stage2),("PP",scan_pocket_pivot),
-        ("EMA_PULL",scan_ema_pullback),("NR7",scan_nr7),("RS_HIGH",scan_rs_new_high),
-    ]
+    print(f"\n  🔍  Qullamaggie scans (EP, Flag, EMA Pullback)…")
+    q_hits = []
+    for t in valid:
+        try:
+            q_hits.extend(scan_qullamaggie(t, data[t], rs_pct.get(t,0), cache))
+        except: pass
+    q_hits.sort(key=lambda x: x["score"], reverse=True)
+    seen=set(); q_deduped=[]
+    for r in q_hits:
+        if r["ticker"] not in seen: q_deduped.append(r); seen.add(r["ticker"])
+    q_hits = q_deduped[:CFG["top_n"]]
+    print(f"     → {len(q_hits)} setups ({dict(__import__('collections').Counter(r['strategy'] for r in q_hits))})")
+
+    print(f"\n  🔍  Minervini scans (VCP)…")
+    m_hits = []
+    for t in valid:
+        try:
+            r = scan_minervini(t, data[t], rs_pct.get(t,0), cache)
+            if r: m_hits.append(r)
+        except: pass
+    m_hits.sort(key=lambda x: x["score"], reverse=True)
+    m_hits = m_hits[:CFG["top_n"]]
+    print(f"     → {len(m_hits)} setups")
+
+    print(f"\n  🔍  O'Neil/IBD scans (Base Breakout, Pocket Pivot)…")
+    o_hits = []
+    for t in valid:
+        try:
+            o_hits.extend(scan_oneil(t, data[t], rs_pct.get(t,0), cache))
+        except: pass
+    o_hits.sort(key=lambda x: x["score"], reverse=True)
+    seen=set(); o_deduped=[]
+    for r in o_hits:
+        if r["ticker"] not in seen: o_deduped.append(r); seen.add(r["ticker"])
+    o_hits = o_deduped[:CFG["top_n"]]
+    print(f"     → {len(o_hits)} setups ({dict(__import__('collections').Counter(r['strategy'] for r in o_hits))})")
+
+    print(f"\n  🔍  Weinstein scans (Stage 2)…")
+    w_hits = []
+    for t in valid:
+        try:
+            r = scan_weinstein(t, data[t], rs_pct.get(t,0), cache)
+            if r: w_hits.append(r)
+        except: pass
+    w_hits.sort(key=lambda x: x["score"], reverse=True)
+    w_hits = w_hits[:CFG["top_n"]]
+    print(f"     → {len(w_hits)} setups")
+
+    # Combine all swing hits for fundamentals enrichment
+    all_hits_swing = q_hits + m_hits + o_hits + w_hits
     BEARISH_SCANS = [
         ("BREAKDOWN",scan_breakdown),("STAGE4",scan_stage4),("FAILED_BO",scan_failed_breakout),
         ("SHORT_EP",scan_short_ep),("DIST_TOP",scan_distribution_top),
@@ -1293,9 +1919,12 @@ def run(test_mode=False):
                 except: pass
             print(f"     {name:<16} {count} hits")
         hits.sort(key=lambda x: x["score"], reverse=True)
-        return hits[:CFG["top_n"]]
-    print(f"\n  🔍  Bullish scans ({len(valid)} stocks)…")
-    swing_bull = run_scans(BULLISH_SCANS)
+        seen = set(); deduped = []
+        for r in hits:
+            if r["ticker"] not in seen:
+                deduped.append(r); seen.add(r["ticker"])
+        return deduped[:CFG["top_n"]]
+
     print(f"\n  🔍  Bearish scans…")
     swing_bear = run_scans(BEARISH_SCANS)
     print(f"\n  🔍  Choppy market scans…")
@@ -1307,29 +1936,70 @@ def run(test_mode=False):
             lt_hits.extend(scan_canslim(t, data[t], rs_pct.get(t,0), cache))
         except: pass
     lt_hits.sort(key=lambda x: x["score"], reverse=True)
-    lt_hits = lt_hits[:CFG["top_n"]]
-    print(f"     CANSLIM          {len(lt_hits)} hits")
-    all_hits = swing_bull + swing_bear + swing_chop + lt_hits
+    seen_lt = set(); lt_deduped = []
+    for r in lt_hits:
+        if r["ticker"] not in seen_lt:
+            lt_deduped.append(r); seen_lt.add(r["ticker"])
+    lt_hits = lt_deduped[:CFG["top_n"]]
+    print(f"     CANSLIM          {len(lt_hits)} unique tickers")
+
+    all_hits = all_hits_swing + swing_bear + swing_chop + lt_hits
     hit_tickers = list({r["ticker"] for r in all_hits})
     if hit_tickers:
         print(f"\n  ↓  Fetching fundamentals for {len(hit_tickers)} hits…")
         cache = enrich_fundamentals(hit_tickers, cache)
+        fmp_key = cfg.get("FMP_API_KEY", "")
+        if fmp_key:
+            cache = enrich_with_fmp(hit_tickers, fmp_key, cache)
+        else:
+            print("  ⚠  Skipping FMP quarterly data (no FMP_API_KEY in config)")
         for r in all_hits:
             si = cache.get(r["ticker"], {})
-            r["name"]        = si.get("name", r.get("name", r["ticker"]))
-            r["sector"]      = si.get("sector", r.get("sector",""))
-            r["industry"]    = si.get("industry","")
-            r["eps_growth"]  = si.get("eps_growth",0)
-            r["rev_growth"]  = si.get("rev_growth",0)
-            r["eps"]         = si.get("eps_growth",0)
-            r["rev"]         = si.get("rev_growth",0)
-            r["inst"]        = si.get("inst_own",0)
-            r["short_float"] = si.get("short_float",None)
-            r["sf"]          = si.get("short_float",None)
-            r["canslim"]     = canslim_ok(r["ticker"], r["rs_pctile"], cache)
-    print("  ∑  Fetching earnings calendar…")
+            q_avail = si.get("q_data_available", False)
+            r["name"]          = si.get("name", r.get("name", r["ticker"]))
+            r["sector"]        = si.get("sector", r.get("sector",""))
+            r["industry"]      = si.get("industry","")
+            r["eps_growth"]    = (si.get("mrq_eps_growth") if q_avail else si.get("eps_growth",0)) or 0
+            r["rev_growth"]    = (si.get("mrq_rev_growth") if q_avail else si.get("rev_growth",0)) or 0
+            r["eps"]           = r["eps_growth"]
+            r["rev"]           = r["rev_growth"]
+            r["inst"]          = si.get("inst_own", 0)
+            r["short_float"]   = si.get("short_float", None)
+            r["sf"]            = si.get("short_float", None)
+            r["eps_accel"]     = si.get("eps_accelerating", False)
+            r["rev_accel"]     = si.get("rev_accelerating", False)
+            r["eps_accel_3q"]  = si.get("eps_accel_3q", False)
+            r["eps_positive"]  = si.get("eps_positive", None)
+            r["annual_stable"] = si.get("annual_eps_stable", False)
+            r["annual_cagr"]   = si.get("annual_eps_growth_3y", None)
+            r["float_cat"]     = si.get("float_category", None)
+            r["buyback"]       = si.get("buyback_trend", False)
+            r["q_data"]        = q_avail
+            r["canslim"]       = canslim_ok(r["ticker"], r["rs_pctile"], cache)
+
+    # Post-enrichment: apply fundamental filters to O'Neil and Minervini
+    def passes_oneil_fundamentals(r):
+        si = cache.get(r["ticker"], {})
+        q_avail = si.get("q_data_available", False)
+        eps_g = (si.get("mrq_eps_growth") if q_avail else si.get("eps_growth",0)) or 0
+        rev_g = (si.get("mrq_rev_growth") if q_avail else si.get("rev_growth",0)) or 0
+        if q_avail and not si.get("eps_positive", True): return False
+        return eps_g >= 20 and rev_g >= 15
+
+    def passes_minervini_fundamentals(r):
+        si = cache.get(r["ticker"], {})
+        q_avail = si.get("q_data_available", False)
+        eps_g = (si.get("mrq_eps_growth") if q_avail else si.get("eps_growth",0)) or 0
+        rev_g = (si.get("mrq_rev_growth") if q_avail else si.get("rev_growth",0)) or 0
+        if q_avail and not si.get("eps_positive", True): return False
+        return eps_g >= 25 or rev_g >= 20
+
+    o_hits  = [r for r in o_hits if passes_oneil_fundamentals(r)]
+    m_hits  = [r for r in m_hits if passes_minervini_fundamentals(r)]
+    print(f"     Post-filter: Q:{len(q_hits)} MIN:{len(m_hits)} ONEIL:{len(o_hits)} WEIN:{len(w_hits)}")
     earnings = fetch_earnings_week(hit_tickers[:100])
     print(f"     {len(earnings)} earnings this week")
+
     output = {
         "scanned_at":    datetime.now(timezone.utc).isoformat(),
         "market_regime": regime,
@@ -1338,17 +2008,20 @@ def run(test_mode=False):
         "indexes":       indexes,
         "sectors":       sectors,
         "earnings":      earnings,
-        "swing":         swing_bull,
+        "qullamaggie":   q_hits,
+        "minervini":     m_hits,
+        "oneil":         o_hits,
+        "weinstein":     w_hits,
         "bearish":       swing_bear,
         "choppy":        swing_chop,
         "longterm":      lt_hits,
     }
-    total = len(swing_bull)+len(swing_bear)+len(swing_chop)+len(lt_hits)
+    total = len(q_hits)+len(m_hits)+len(o_hits)+len(w_hits)+len(swing_bear)+len(swing_chop)+len(lt_hits)
     with open(CFG["output_file"], "w") as f:
         json.dump(output, f, indent=2)
     print(f"\n  ✓  {total} setups → {CFG['output_file']}")
-    print(f"     Bullish:{len(swing_bull)}  Bearish:{len(swing_bear)}  "
-          f"Choppy:{len(swing_chop)}  LongTerm:{len(lt_hits)}")
+    print(f"     Q:{len(q_hits)} MIN:{len(m_hits)} ONEIL:{len(o_hits)} WEIN:{len(w_hits)} "
+          f"Bear:{len(swing_bear)} Choppy:{len(swing_chop)} LT:{len(lt_hits)}")
     upload_to_github(output, cfg)
 
 def setup_cron():
