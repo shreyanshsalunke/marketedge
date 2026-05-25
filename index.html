@@ -201,8 +201,29 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 @media(max-width:700px){#screener-grid{grid-template-columns:1fr}}
 
 /* ── STOCK CARDS ── */
+
 .scard{background:var(--bg2);border:1px solid var(--border);border-radius:6px;overflow:hidden;cursor:pointer;transition:border-color .15s;}
 .scard:hover{border-color:var(--accent);}
+.scard-default{padding:12px 14px 10px;}
+.scard-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.scard-row2{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.scard-pivot-bar{height:2px;background:var(--bg4);border-radius:1px;margin-top:8px;overflow:hidden;}
+.scard-pivot-fill{height:100%;border-radius:1px;}
+.scard-hover{display:none;padding:10px 14px 12px;border-top:1px solid var(--border);}
+.scard:hover .scard-hover{display:block;}
+.hover-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px;}
+.hover-item{background:var(--bg3);border-radius:3px;padding:5px 7px;}
+.hover-label{font-size:8px;color:var(--text3);margin-bottom:2px;font-family:var(--font-mono);}
+.hover-val{font-size:11px;font-weight:600;color:var(--text);font-family:var(--font-mono);}
+.hover-val.pos{color:var(--bull);}
+.hover-val.neg{color:var(--bear);}
+.hover-val.blue{color:var(--accent);}
+.hover-val.warn{color:var(--neut);}
+.hover-meta{font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-bottom:7px;}
+.hover-links{display:flex;gap:5px;}
+.hover-link{font-size:9px;color:var(--accent);border:1px solid rgba(88,166,255,.3);padding:2px 8px;border-radius:3px;text-decoration:none;transition:border-color .12s;}
+.hover-link:hover{border-color:var(--accent);}
+
 .scard.canslim-card{border-left:3px solid var(--purple)}
 .scard-head{padding:12px 14px 8px}
 .scard-top{display:flex;align-items:center;gap:5px;margin-bottom:2px;flex-wrap:wrap}
@@ -847,40 +868,43 @@ function renderScreenerGrid(){
   const grid=document.getElementById('screener-grid');
   grid.innerHTML=filtered.map((s,idx)=>{
     const sfWarn=s.sf>15;
-    const badgeCls=ACTIVE_MC==='bearish'?'BEAR':ACTIVE_MC==='choppy'?'PP':'VCP';
-    const saved=isSaved(s.ticker);
-    const fromPivot=s.from_high_pct||s.from_top_pct||s.from_pivot||null;
-    const rsDir=s.rs_slope>0?'↑':s.rs_slope<0?'↓':'→';
-    const rsSlopeCls=s.rs_slope>0?'up':s.rs_slope<0?'dn':'flat';
-    return`<div class="scard" data-ticker="${s.ticker}" style="cursor:pointer" onclick="window.open('https://www.tradingview.com/chart/?symbol=${s.ticker}','_blank')">
-      <div class="scard-head">
-        <div class="scard-top">
-          <span class="scard-rank">#${idx+1}</span>
-          <button class="star-btn" data-ticker="${s.ticker}" onclick="event.stopPropagation();toggleWatchlist('${s.ticker}')"></button>
-          <span class="scard-ticker">${s.ticker}</span>${caBadge(s.ticker)}
-          <span class="strategy-badge ${badgeCls}">${STRAT_LABELS[s.strategy]||s.strategy}</span>
-          <span class="status-badge ${s.status}">${s.status}</span>
-          ${earningsFlag(s.ticker)}
-          <div class="score-wrap" style="margin-left:auto">
-            <span class="scard-score">${s.score.toFixed(1)}</span>
-            ${scoreTip(s)}
+    const fromPivot=+(s.from_high_pct||s.from_top_pct||s.from_pivot||0);
+    const barW=Math.max(0,Math.min(100,100-fromPivot*8));
+    const barCol=fromPivot<=3?'var(--bull)':fromPivot<=6?'var(--accent)':'var(--neut)';
+    const epsVal=s.eps?`${s.eps>0?'+':''}${s.eps}%`:'—';
+    const revVal=s.rev?`${s.rev>0?'+':''}${s.rev}%`:'—';
+    const epsCls=!s.eps?'':(s.eps<0?'neg':'pos');
+    const revCls=!s.rev?'':(s.rev<0?'neg':'pos');
+    const pivotCls=fromPivot<=3?'blue':fromPivot<=7?'warn':'neg';
+    return`<div class="scard" data-ticker="${s.ticker}" onclick="window.open('https://www.tradingview.com/chart/?symbol=${s.ticker}','_blank')">
+      <div class="scard-default">
+        <div class="scard-row1">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span class="scard-rank" style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">#${idx+1}</span>
+            <span class="scard-ticker">${s.ticker}</span>
           </div>
+          <span class="scard-score">${s.score.toFixed(1)}</span>
         </div>
-        <div class="scard-name">${s.name} · $${fmtPrice(s.price)}</div>
+        <div class="scard-row2">
+          <span class="strategy-badge ${s.strategy}">${STRAT_LABELS[s.strategy]||s.strategy}</span>
+          <span class="status-badge ${s.status}">${s.status}</span>
+          <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-left:auto">RS ${s.rs}th</span>
+        </div>
+        <div class="scard-pivot-bar"><div class="scard-pivot-fill" style="width:${barW}%;background:${barCol}"></div></div>
       </div>
-      <div class="scard-pills">
-        <span class="pill rs">RS ${s.rs}th<span class="rs-slope ${rsSlopeCls}">${rsDir}</span></span>
-        ${s.eps?`<span class="pill ${s.eps<0?'warn':'eps'}">EPS ${s.eps>0?'+':''}${s.eps}%</span>`:''}
-        ${s.rev?`<span class="pill ${s.rev<0?'warn':'rev'}">Rev ${s.rev>0?'+':''}${s.rev}%</span>`:''}
-        <span class="pill">${s.sector}</span>
-        ${s.wt>0?`<span class="pill tight">🔒 ${s.wt}wt tight</span>`:''}
-        ${s.sf!=null?`<span class="pill ${sfWarn?'warn':''}">Short ${s.sf}%</span>`:''}
-        <a class="pill" href="https://www.tradingview.com/chart/?symbol=${s.ticker}" target="_blank" onclick="event.stopPropagation()">TV</a>
-        <a class="pill" href="https://finviz.com/quote.ashx?t=${s.ticker}" target="_blank" onclick="event.stopPropagation()">FZ</a>
+      <div class="scard-hover">
+        <div class="hover-grid">
+          <div class="hover-item"><div class="hover-label">EPS</div><div class="hover-val ${epsCls}">${epsVal}</div></div>
+          <div class="hover-item"><div class="hover-label">Rev</div><div class="hover-val ${revCls}">${revVal}</div></div>
+          <div class="hover-item"><div class="hover-label">From pivot</div><div class="hover-val ${pivotCls}">${fromPivot.toFixed(1)}%</div></div>
+          <div class="hover-item"><div class="hover-label">Short float</div><div class="hover-val ${sfWarn?'warn':''}">${s.sf!=null?s.sf+'%':'—'}</div></div>
+        </div>
+        <div class="hover-meta">${s.sector||''} · $${fmtPrice(s.price)}${earningsFlag(s.ticker)}</div>
+        <div class="hover-links">
+          <a class="hover-link" href="https://www.tradingview.com/chart/?symbol=${s.ticker}" target="_blank" onclick="event.stopPropagation()">TV</a>
+          <a class="hover-link" href="https://finviz.com/quote.ashx?t=${s.ticker}" target="_blank" onclick="event.stopPropagation()">FZ</a>
+        </div>
       </div>
-      ${pivotDist(fromPivot)}
-      ${s.pct_52w!=null?high52Label(s.pct_52w):''}
-      ${posSize(s.price)}
     </div>`;
   }).join('') || '<div style="color:var(--text3);padding:20px">No setups match this filter.</div>';
   
@@ -915,31 +939,40 @@ function renderLongTerm(){
 
   grid.innerHTML=filtered.map((s,idx)=>{
     const subLabel=STRAT_LABELS[s.strategy]||s.strategy;
-    // canslim field is now a boolean from canslim_ok() — use score field instead
     const scoreVal = +(s.score||s.canslim_score||0);
-    const mktcapFmt = s.mktcap ? (s.mktcap>1e12?`$${(s.mktcap/1e12).toFixed(1)}T`:s.mktcap>1e9?`$${(s.mktcap/1e9).toFixed(1)}B`:s.mktcap>1e6?`$${(s.mktcap/1e6).toFixed(0)}M`:'') : '';
     const epsAccel = s.eps_accel_3q ? '++' : s.eps_accel ? '+' : '';
-    return`<div class="scard canslim-card" data-ticker="${s.ticker}" style="cursor:pointer" onclick="window.open('https://www.tradingview.com/chart/?symbol=${s.ticker}','_blank')">
-      <div class="scard-head">
-        <div class="scard-top">
-          <span class="scard-rank">#${idx+1}</span>
-          <span class="scard-ticker">${s.ticker}</span>
-          <span class="strategy-badge CANSLIM">${subLabel}</span>
-          <span class="pattern-badge">${s.pattern||''}</span>
+    const epsVal=s.eps?`${s.eps>0?'+':''}${s.eps}%${epsAccel}`:'—';
+    const revVal=s.rev?`${s.rev>0?'+':''}${s.rev}%`:'—';
+    const epsCls=!s.eps?'':(s.eps<0?'neg':'pos');
+    const revCls=!s.rev?'':(s.rev<0?'neg':'pos');
+    const barW=Math.min(100,scoreVal);
+    return`<div class="scard canslim-card" data-ticker="${s.ticker}" onclick="window.open('https://www.tradingview.com/chart/?symbol=${s.ticker}','_blank')">
+      <div class="scard-default">
+        <div class="scard-row1">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">#${idx+1}</span>
+            <span class="scard-ticker">${s.ticker}</span>
+          </div>
           <span class="scard-score">${scoreVal.toFixed(1)}</span>
         </div>
-        <div class="scard-name">${s.name} · $${fmtPrice(s.price)}${mktcapFmt?' · '+mktcapFmt:''}</div>
+        <div class="scard-row2">
+          <span class="strategy-badge CANSLIM">${subLabel}</span>
+          <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-left:auto">RS ${s.rs||s.rs_pctile||0}th</span>
+        </div>
+        <div class="scard-pivot-bar"><div class="scard-pivot-fill" style="width:${barW}%;background:var(--purple)"></div></div>
       </div>
-      <div class="canslim-score-bar"><div class="canslim-score-fill" style="width:${Math.min(100,scoreVal)}%"></div></div>
-      <div class="scard-pills">
-        <span class="pill rs">RS ${s.rs||s.rs_pctile||0}th</span>
-        ${s.eps!=null&&s.eps!==0?`<span class="pill ${s.eps<0?'warn':'eps'}">EPS ${s.eps>0?'+':''}${s.eps}%${epsAccel}</span>`:''}
-        ${s.rev!=null&&s.rev!==0?`<span class="pill ${s.rev<0?'warn':'rev'}">Rev ${s.rev>0?'+':''}${s.rev}%</span>`:''}
-        ${s.annual_stable?`<span class="pill tight">3yr ↑</span>`:''}
-        ${s.inst?`<span class="pill">Inst ${s.inst}%</span>`:''}
-        <span class="pill">${s.sector||''}</span>
-        <a class="pill" href="https://www.tradingview.com/chart/?symbol=${s.ticker}" target="_blank" onclick="event.stopPropagation()">TV</a>
-        <a class="pill" href="https://finviz.com/quote.ashx?t=${s.ticker}" target="_blank" onclick="event.stopPropagation()">FZ</a>
+      <div class="scard-hover">
+        <div class="hover-grid">
+          <div class="hover-item"><div class="hover-label">EPS</div><div class="hover-val ${epsCls}">${epsVal}</div></div>
+          <div class="hover-item"><div class="hover-label">Rev</div><div class="hover-val ${revCls}">${revVal}</div></div>
+          <div class="hover-item"><div class="hover-label">Inst own</div><div class="hover-val">${s.inst?s.inst+'%':'—'}</div></div>
+          <div class="hover-item"><div class="hover-label">3yr trend</div><div class="hover-val ${s.annual_stable?'pos':''}">${s.annual_stable?'Rising':'—'}</div></div>
+        </div>
+        <div class="hover-meta">${s.sector||''} · $${fmtPrice(s.price)}</div>
+        <div class="hover-links">
+          <a class="hover-link" href="https://www.tradingview.com/chart/?symbol=${s.ticker}" target="_blank" onclick="event.stopPropagation()">TV</a>
+          <a class="hover-link" href="https://finviz.com/quote.ashx?t=${s.ticker}" target="_blank" onclick="event.stopPropagation()">FZ</a>
+        </div>
       </div>
     </div>`;
   }).join('') || '<div style="color:var(--text3);padding:20px">No CANSLIM setups found.</div>';
