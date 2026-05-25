@@ -1051,7 +1051,7 @@ function renderScreenerGrid(){
             <span class="scard-ticker">${s.ticker}</span>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
-            <span class="scard-score" style="color:${s.score>=80?'#3fb950':s.score>=65?'#e07b30':'#d29922'}">${s.score.toFixed(1)}</span>
+            <span class="scard-score" style="color:${s.score>=80?'#3fb950':s.score>=65?'#58a6ff':'#d29922'}">${s.score.toFixed(1)}</span>
             ${s.score_delta!=null?`<span style="font-family:var(--font-mono);font-size:9px;color:${s.score_delta>0?'#3fb950':s.score_delta<0?'#f85149':'#8b949e'}">${s.score_delta>0?'▲'+s.score_delta.toFixed(1):s.score_delta<0?'▼'+Math.abs(s.score_delta).toFixed(1):'—'}</span>`:''}
           </div>
         </div>
@@ -1062,7 +1062,7 @@ function renderScreenerGrid(){
           <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-left:auto">RS ${s.rs}th</span>
         </div>
         <div style="height:3px;background:var(--bg4);border-radius:2px;margin-top:7px;overflow:hidden">
-          <div style="height:100%;width:${Math.min(100,s.score)}%;background:${s.score>=80?'#3fb950':s.score>=65?'#e07b30':'#d29922'};border-radius:2px"></div>
+          <div style="height:100%;width:${Math.min(100,s.score)}%;background:${s.score>=80?'#3fb950':s.score>=65?'#58a6ff':'#d29922'};border-radius:2px"></div>
         </div>
       </div>
       <div class="scard-hover">
@@ -1124,7 +1124,7 @@ function renderLongTerm(){
             <span class="scard-ticker">${s.ticker}</span>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
-            <span class="scard-score" style="color:${scoreVal>=80?'#3fb950':scoreVal>=65?'#e07b30':'#d29922'}">${scoreVal.toFixed(1)}</span>
+            <span class="scard-score" style="color:${scoreVal>=80?'#3fb950':scoreVal>=65?'#58a6ff':'#d29922'}">${scoreVal.toFixed(1)}</span>
             ${s.score_delta!=null?`<span style="font-family:var(--font-mono);font-size:9px;color:${s.score_delta>0?'#3fb950':s.score_delta<0?'#f85149':'#8b949e'}">${s.score_delta>0?'▲'+s.score_delta.toFixed(1):s.score_delta<0?'▼'+Math.abs(s.score_delta).toFixed(1):'—'}</span>`:''}
           </div>
         </div>
