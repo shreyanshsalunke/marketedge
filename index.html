@@ -24,7 +24,7 @@
   --font-mono:'JetBrains Mono',monospace;
   --font-body:'JetBrains Mono',monospace;
 }
-body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-size:12px;min-height:100vh;overflow-x:hidden}
+body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;overflow-x:hidden}
 
 /* ── HEADER ── */
 #header{
@@ -50,7 +50,7 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 .regime-badge.BULLISH{background:var(--bull-bg);color:var(--bull);border:1px solid var(--bull);font-family:var(--font-mono)}
 .regime-badge.BEARISH{background:var(--bear-bg);color:var(--bear);border:1px solid var(--bear2)}
 .regime-badge.NEUTRAL{background:var(--neut-bg);color:var(--neut);border:1px solid var(--neut)}
-.header-stat{font-size:10px;color:var(--text3);font-family:var(--font-mono)}
+.header-stat{font-size:12px;color:var(--text3);font-family:var(--font-mono)}
 .header-stat b{color:var(--text2)}
 #updated{font-size:10px;color:var(--text3);font-family:var(--font-mono);margin-left:auto}
 
@@ -63,7 +63,7 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
   display:flex;padding:0 24px;gap:0;
 }
 .tab-btn{
-  font-family:var(--font-mono);font-size:10px;font-weight:500;
+  font-family:var(--font-mono);font-size:12px;font-weight:500;
   letter-spacing:.08em;text-transform:uppercase;
   padding:0 20px;height:42px;
   color:var(--text3);cursor:pointer;
@@ -76,7 +76,7 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 .tab-btn.active .dot{background:var(--accent);box-shadow:0 0 6px var(--accent)}
 
 /* ── PANE COMMON ── */
-.pane{display:none;padding:24px;max-width:1600px;margin:0 auto}
+.pane{display:none;padding:28px;max-width:1400px;margin:0 auto}
 .pane.active{display:block}
 .section-title{
   font-family:var(--font-mono);font-size:9px;font-weight:600;
@@ -103,9 +103,9 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 .idx-card.bear-card::before{--accent-line:var(--bear)}
 .idx-card.neut-card::before{--accent-line:var(--neut)}
 .idx-flag{font-size:9px;color:var(--text3);margin-bottom:4px;font-family:var(--font-display);letter-spacing:.06em}
-.idx-sym{font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--text);margin-bottom:1px}
+.idx-sym{font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--text);margin-bottom:1px}
 .idx-name{font-size:10px;color:var(--text3);margin-bottom:10px}
-.idx-price{font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--text);margin-bottom:6px}
+.idx-price{font-family:var(--font-mono);font-size:24px;font-weight:600;color:var(--text);margin-bottom:6px}
 .idx-changes{display:flex;gap:8px;flex-wrap:wrap}
 .idx-chg{font-family:var(--font-mono);font-size:10px;padding:2px 6px;border-radius:3px;white-space:nowrap}
 .idx-chg.pos{background:var(--bull-bg);color:var(--bull)}
@@ -197,8 +197,9 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
   color:var(--text3);transition:all .15s;
 }
 .mode-btn.active{background:var(--bg4);color:var(--accent);border:1px solid var(--accent)}
-#screener-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;align-items:start}
-@media(max-width:700px){#screener-grid{grid-template-columns:1fr}}
+#screener-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:start}
+@media(max-width:1000px){#screener-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){#screener-grid{grid-template-columns:1fr}}
 
 /* ── STOCK CARDS ── */
 
@@ -213,13 +214,13 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 .scard:hover .scard-hover{display:block;}
 .hover-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px;}
 .hover-item{background:var(--bg3);border-radius:3px;padding:5px 7px;}
-.hover-label{font-size:8px;color:var(--text3);margin-bottom:2px;font-family:var(--font-mono);}
-.hover-val{font-size:11px;font-weight:600;color:var(--text);font-family:var(--font-mono);}
+.hover-label{font-size:10px;color:var(--text3);margin-bottom:3px;font-family:var(--font-mono);}
+.hover-val{font-size:13px;font-weight:600;color:var(--text);font-family:var(--font-mono);}
 .hover-val.pos{color:var(--bull);}
 .hover-val.neg{color:var(--bear);}
 .hover-val.blue{color:var(--accent);}
 .hover-val.warn{color:var(--neut);}
-.hover-meta{font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-bottom:7px;}
+.hover-meta{font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-bottom:8px;}
 .hover-links{display:flex;gap:5px;}
 .hover-link{font-size:9px;color:var(--accent);border:1px solid rgba(88,166,255,.3);padding:2px 8px;border-radius:3px;text-decoration:none;transition:border-color .12s;}
 .hover-link:hover{border-color:var(--accent);}
@@ -228,10 +229,10 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 .scard-head{padding:12px 14px 8px}
 .scard-top{display:flex;align-items:center;gap:5px;margin-bottom:2px;flex-wrap:wrap}
 .scard-rank{font-family:var(--font-mono);font-size:10px;color:var(--text3);min-width:20px;flex-shrink:0}
-.scard-ticker{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--text);letter-spacing:.02em}
-.scard-name{font-size:10px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.scard-score{margin-left:auto;font-family:var(--font-mono);font-size:22px;font-weight:700;color:#3fb950}
-.strategy-badge{font-family:var(--font-mono);font-size:8px;font-weight:600;padding:2px 6px;border-radius:3px;letter-spacing:.04em;text-transform:uppercase;border:1px solid;flex-shrink:0;white-space:nowrap}
+.scard-ticker{font-family:var(--font-display);font-size:19px;font-weight:700;color:var(--text);letter-spacing:.02em}
+.scard-name{font-size:12px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scard-score{margin-left:auto;font-family:var(--font-mono);font-size:26px;font-weight:700;color:#3fb950}
+.strategy-badge{font-family:var(--font-mono);font-size:9px;font-weight:600;padding:3px 8px;border-radius:3px;letter-spacing:.04em;text-transform:uppercase;border:1px solid;flex-shrink:0;white-space:nowrap}
 .strategy-badge.VCP{background:rgba(14,116,144,.1);color:var(--cyan);border-color:rgba(14,116,144,.3)}
 .strategy-badge.BASE{background:rgba(245,158,11,.1);color:var(--neut);border-color:rgba(245,158,11,.3)}
 .strategy-badge.FLAG{background:rgba(16,185,129,.1);color:var(--teal);border-color:rgba(16,185,129,.3)}
@@ -239,12 +240,12 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 .strategy-badge.BEAR{background:rgba(239,68,68,.1);color:var(--bear);border-color:rgba(239,68,68,.3)}
 .strategy-badge.EGU{background:rgba(139,92,246,.1);color:var(--purple);border-color:rgba(139,92,246,.3)}
 .strategy-badge.CANSLIM{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
-.status-badge{font-family:var(--font-mono);font-size:8px;font-weight:600;padding:2px 6px;border-radius:3px;letter-spacing:.05em;flex-shrink:0}
+.status-badge{font-family:var(--font-mono);font-size:9px;font-weight:600;padding:3px 8px;border-radius:3px;letter-spacing:.05em;flex-shrink:0}
 .status-badge.READY{background:rgba(63,185,80,.15);color:#3fb950}
 .status-badge.GOOD{background:rgba(88,166,255,.12);color:#58a6ff}
 .status-badge.DEVELOPING{background:var(--bg3);color:var(--text3);border:1px solid var(--border)}
 .scard-pills{display:flex;gap:4px;flex-wrap:wrap;padding:0 14px 10px}
-.pill{font-size:9px;padding:2px 7px;border-radius:3px;border:1px solid var(--border);color:var(--text3);background:var(--bg3);font-family:var(--font-mono);white-space:nowrap;text-decoration:none;transition:border-color .12s,color .12s}
+.pill{font-size:10px;padding:3px 8px;border-radius:3px;border:1px solid var(--border);color:var(--text3);background:var(--bg3);font-family:var(--font-mono);white-space:nowrap;text-decoration:none;transition:border-color .12s,color .12s}
 a.pill:hover{border-color:var(--accent);color:var(--accent)}
 .pill.rs{background:rgba(88,166,255,.1);border-color:rgba(88,166,255,.3);color:#58a6ff}
 .pill.eps{background:rgba(63,185,80,.1);border-color:rgba(63,185,80,.3);color:#3fb950}
@@ -274,7 +275,7 @@ a.pill:hover{border-color:var(--accent);color:var(--accent)}
 
 /* ── MARKET CONDITION BAR ── */
 #mc-bar{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
-.mc-btn{font-family:var(--font-mono);font-size:10px;font-weight:600;letter-spacing:.06em;padding:6px 16px;border-radius:4px;cursor:pointer;border:1px solid var(--border);color:var(--text3);background:var(--bg3);transition:all .15s;display:flex;align-items:center;gap:6px}
+.mc-btn{font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:.06em;padding:6px 16px;border-radius:4px;cursor:pointer;border:1px solid var(--border);color:var(--text3);background:var(--bg3);transition:all .15s;display:flex;align-items:center;gap:6px}
 .mc-btn:hover{color:var(--text2);border-color:var(--border2)}
 .mc-btn.bullish.active{background:var(--bull-bg);color:var(--bull);border-color:var(--bull)}
 .mc-btn.qullamaggie.active{background:var(--bull-bg);color:var(--bull);border-color:var(--bull)}
@@ -283,7 +284,7 @@ a.pill:hover{border-color:var(--accent);color:var(--accent)}
 
 /* ── STRATEGY SUB-TABS ── */
 #strategy-tabs{display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap}
-.strat-tab{font-family:var(--font-mono);font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:4px 12px;border-radius:3px;cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--text3);transition:all .15s;white-space:nowrap}
+.strat-tab{font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:4px 12px;border-radius:3px;cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--text3);transition:all .15s;white-space:nowrap}
 .strat-tab:hover{color:var(--text2);border-color:var(--border2)}
 .strat-tab.bull-strat.active{background:var(--bull-bg);color:var(--bull);border-color:var(--bull)}
 .strat-tab.bear-strat.active{background:var(--bear);color:#fff;border-color:var(--bear)}
