@@ -86,7 +86,7 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 .section-title::after{content:'';flex:1;height:1px;background:var(--border)}
 
 /* ── PANE 1: INDEX CARDS ── */
-#index-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px}
+#index-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
 @media(max-width:1100px){#index-grid{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:800px){#index-grid{grid-template-columns:repeat(2,1fr)}}
 .idx-card{
@@ -114,7 +114,7 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 .idx-chg span{color:var(--text3);font-size:9px;margin-right:2px}
 
 /* ── BREADTH ROW ── */
-#breadth-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px}
+#breadth-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
 @media(max-width:700px){#breadth-row{grid-template-columns:1fr}}
 .breadth-card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:24px 28px;}
 .breadth-title{font-family:var(--font-display);font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:12px}
@@ -129,15 +129,7 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 .gauge-sub b{color:var(--text2)}
 
 /* ── FEAR/GREED METER ── */
-.fg-meter{display:flex;flex-direction:column;align-items:center;gap:8px}
-.fg-arc-wrap{position:relative;width:120px;height:64px;overflow:hidden}
-.fg-arc-wrap svg{width:120px;height:120px;margin-top:-4px}
-.fg-needle{transform-origin:60px 60px;transition:transform .6s cubic-bezier(.34,1.56,.64,1)}
-.fg-label{font-family:var(--font-display);font-size:18px;font-weight:700;text-align:center}
-.fg-label.greed{color:var(--bull)}
-.fg-label.fear{color:var(--bear)}
-.fg-label.neutral{color:var(--neut)}
-.fg-sublabel{font-size:9px;color:var(--text3);text-align:center;letter-spacing:.06em}
+
 
 /* ── EARNINGS ── */
 #earnings-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:24px}
@@ -412,10 +404,10 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
 
 <!-- PANE 1: MARKET -->
 <div class="pane active" id="pane-market">
-  <div class="section-title">Major Indexes</div>
+  <div class="section-title">Indexes</div>
   <div id="index-grid"></div>
 
-  <div class="section-title">Market Breadth</div>
+  <div class="section-title">Market Health</div>
   <div id="breadth-row">
     <div class="breadth-card">
       <div class="breadth-title">McClellan Oscillator</div>
@@ -427,29 +419,6 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
         </div>
       </div>
     </div>
-    <div class="breadth-card" style="display:flex;flex-direction:column;align-items:center">
-      <div class="breadth-title" style="text-align:center">Fear & Greed Index</div>
-      <div class="fg-meter">
-        <div class="fg-arc-wrap">
-          <svg viewBox="0 0 120 120" id="fg-svg">
-            <defs>
-              <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" style="stop-color:#ef4444"/>
-                <stop offset="25%" style="stop-color:#f97316"/>
-                <stop offset="50%" style="stop-color:#f59e0b"/>
-                <stop offset="75%" style="stop-color:#84cc16"/>
-                <stop offset="100%" style="stop-color:#10b981"/>
-              </linearGradient>
-            </defs>
-            <path d="M15,60 A45,45 0 0,1 105,60" fill="none" stroke="url(#arcGrad)" stroke-width="8" stroke-linecap="round"/>
-            <path d="M60,60 L60,25" stroke="#1e293b" stroke-width="2" stroke-linecap="round" id="fg-needle" class="fg-needle"/>
-            <circle cx="60" cy="60" r="4" fill="#1e293b"/>
-          </svg>
-        </div>
-        <div class="fg-label neutral" id="fg-label">—</div>
-        <div class="fg-sublabel" id="fg-num">LOADING…</div>
-      </div>
-    </div>
     <div class="breadth-card">
       <div class="breadth-title">% Stocks Above 50-Day SMA</div>
       <div class="gauge-wrap">
@@ -457,6 +426,36 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
         <div style="flex:1">
           <div class="gauge-bar-track"><div class="gauge-bar-fill" id="pct50-bar" style="width:50%;background:var(--accent)"></div></div>
           <div class="gauge-sub" id="pct50-sub">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="breadth-card">
+      <div class="breadth-title">New Highs / New Lows</div>
+      <div class="gauge-wrap">
+        <div class="gauge-val pos" id="nhnl-val">—</div>
+        <div style="flex:1">
+          <div class="gauge-bar-track"><div class="gauge-bar-fill" id="nhnl-bar" style="width:50%;background:var(--bull)"></div></div>
+          <div class="gauge-sub" id="nhnl-sub">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="breadth-card">
+      <div class="breadth-title">Advance / Decline</div>
+      <div class="gauge-wrap">
+        <div class="gauge-val" id="adl-val">—</div>
+        <div style="flex:1">
+          <div class="gauge-bar-track"><div class="gauge-bar-fill" id="adl-bar" style="width:50%;background:var(--accent)"></div></div>
+          <div class="gauge-sub" id="adl-sub">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="breadth-card">
+      <div class="breadth-title">Distribution Days</div>
+      <div class="gauge-wrap">
+        <div class="gauge-val" id="dist-val">—</div>
+        <div style="flex:1">
+          <div class="gauge-bar-track"><div class="gauge-bar-fill" id="dist-bar" style="width:0%;background:var(--bear)"></div></div>
+          <div class="gauge-sub" id="dist-sub">—</div>
         </div>
       </div>
     </div>
@@ -537,16 +536,13 @@ const MOCK = {
   scanned_at: new Date().toISOString(),
   market_regime: "NEUTRAL",
   breadth: { mcclellan: 45.2, pct_above_50sma: 68.0, vix: 16.7, fear_greed: 62,
-             adv: 2184, dec: 847, new_highs: 284, new_lows: 42 },
+             adv: 2184, dec: 847, new_highs: 284, new_lows: 42,
+             dist_days_spy: 2, dist_days_qqq: 1 },
   indexes: [
-    { sym:"SPY", name:"S&P 500",      price:531.42, d1:0.82,  d7:2.14,  flag:"US",  type:"index" },
-    { sym:"QQQ", name:"NASDAQ 100",   price:447.18, d1:1.24,  d7:3.22,  flag:"US",  type:"index" },
-    { sym:"IWM", name:"Russell 2000", price:198.44, d1:-0.31, d7:-0.88, flag:"US",  type:"index" },
-    { sym:"DIA", name:"Dow Jones",    price:423.77, d1:0.44,  d7:1.11,  flag:"US",  type:"index" },
-    { sym:"VIX", name:"CBOE VIX",     price:16.70,  d1:-4.21, d7:-8.44, flag:"US",  type:"vix"   },
-    { sym:"XIU", name:"TSX 60",       price:38.92,  d1:0.55,  d7:1.33,  flag:"CA",  type:"index" },
-    { sym:"BTC", name:"Bitcoin",      price:103420, d1:2.14,  d7:8.44,  flag:"BTC", type:"crypto" },
-    { sym:"ETH", name:"Ethereum",     price:2496,   d1:3.22,  d7:12.10, flag:"ETH", type:"crypto" },
+    { sym:"SPY", name:"S&P 500",      price:531.42, d1:0.82,  d7:2.14,  flag:"US", type:"index" },
+    { sym:"QQQ", name:"NASDAQ 100",   price:447.18, d1:1.24,  d7:3.22,  flag:"US", type:"index" },
+    { sym:"IWM", name:"Russell 2000", price:198.44, d1:-0.31, d7:-0.88, flag:"US", type:"index" },
+    { sym:"VIX", name:"CBOE VIX",     price:16.70,  d1:-4.21, d7:-8.44, flag:"US", type:"vix"   },
   ],
   sectors: [
     { sym:"XLK",  name:"Technology",    emoji:"", d1:1.42,  d7:3.21,  d30:5.11,  d90:12.4, d180:18.2, d365:28.4,
@@ -654,47 +650,58 @@ function renderIndexes(){
 
 function renderBreadth(){
   const br=DATA.breadth;
+
   // Header stats
   document.getElementById('hdr-mco').textContent=(br.mcclellan>=0?'+':'')+br.mcclellan.toFixed(1);
   document.getElementById('hdr-pct50').textContent=br.pct_above_50sma.toFixed(0)+'%';
   document.getElementById('hdr-vix').textContent=br.vix.toFixed(1);
 
-  // MCO
+  // McClellan Oscillator
   const mco=br.mcclellan;
   const mcoEl=document.getElementById('mco-val');
   mcoEl.textContent=(mco>=0?'+':'')+mco.toFixed(1);
   mcoEl.className='gauge-val '+(mco>50?'pos':mco<-50?'neg':'neut');
-  const mcoBar=document.getElementById('mco-bar');
-  const mcoW=Math.min(100,Math.max(0,50+mco));
-  mcoBar.style.width=mcoW+'%';
-  mcoBar.style.background=mco>0?'var(--bull)':mco<0?'var(--bear)':'var(--neut)';
-  document.getElementById('mco-sub').innerHTML=`A/D: <b>${br.adv}↑ / ${br.dec}↓</b> · Highs: <b>${br.new_highs}</b> · Lows: <b>${br.new_lows}</b>`;
-  const regime=mco>50?'Overbought — consider caution':mco<-50?'Oversold — watch for bounce':'Neutral breadth';
-  document.getElementById('mco-sub').innerHTML+=`<br>${regime}`;
+  document.getElementById('mco-bar').style.width=Math.min(100,Math.max(0,50+mco))+'%';
+  document.getElementById('mco-bar').style.background=mco>0?'var(--bull)':mco<0?'var(--bear)':'var(--neut)';
+  document.getElementById('mco-sub').innerHTML=mco>50?'<b>Overbought</b> — consider caution':mco<-50?'<b>Oversold</b> — watch for bounce':'<b>Neutral</b> — breadth mixed';
 
-  // Fear & Greed
-  const fg=br.fear_greed;
-  const angle=-90+(fg/100)*180;
-  const rad=angle*Math.PI/180;
-  const needleEl=document.getElementById('fg-needle');
-  needleEl.setAttribute('transform',`rotate(${angle},60,60)`);
-  const fgLabel=document.getElementById('fg-label');
-  const fgNum=document.getElementById('fg-num');
-  if(fg>=75){fgLabel.textContent='GREED';fgLabel.className='fg-label greed';}
-  else if(fg>=55){fgLabel.textContent='BULLISH';fgLabel.className='fg-label greed';}
-  else if(fg>=45){fgLabel.textContent='NEUTRAL';fgLabel.className='fg-label neutral';}
-  else if(fg>=25){fgLabel.textContent='FEARFUL';fgLabel.className='fg-label fear';}
-  else{fgLabel.textContent='EXTREME FEAR';fgLabel.className='fg-label fear';}
-  fgNum.textContent=fg+' / 100';
-
-  // % above 50 SMA
+  // % Above 50 SMA
   const p50=br.pct_above_50sma;
   const p50El=document.getElementById('pct50-val');
   p50El.textContent=p50.toFixed(0)+'%';
   p50El.className='gauge-val '+(p50>65?'pos':p50<35?'neg':'neut');
   document.getElementById('pct50-bar').style.width=p50+'%';
   document.getElementById('pct50-bar').style.background=p50>65?'var(--bull)':p50<35?'var(--bear)':'var(--accent)';
-  document.getElementById('pct50-sub').innerHTML=p50>65?'<b>Broad strength</b> — market internals healthy':p50<35?'<b>Broad weakness</b> — limited participation':'<b>Mixed</b> — selective leadership';
+  document.getElementById('pct50-sub').innerHTML=p50>65?'<b>Broad strength</b>':p50<35?'<b>Broad weakness</b>':'<b>Mixed</b> — selective leadership';
+
+  // New Highs / New Lows
+  const nh=br.new_highs||0, nl=br.new_lows||0;
+  const nhnlRatio=nl>0?(nh/nl).toFixed(1):'—';
+  const nhnlEl=document.getElementById('nhnl-val');
+  nhnlEl.textContent=`${nh} / ${nl}`;
+  nhnlEl.className='gauge-val '+(nh>nl*2?'pos':nl>nh*2?'neg':'neut');
+  document.getElementById('nhnl-bar').style.width=Math.min(100,nh/(nh+nl||1)*100)+'%';
+  document.getElementById('nhnl-bar').style.background=nh>nl?'var(--bull)':'var(--bear)';
+  document.getElementById('nhnl-sub').innerHTML=nh>nl*2?`<b>Bullish tape</b> — ratio ${nhnlRatio}x`:nl>nh*2?`<b>Bearish tape</b> — ratio ${nhnlRatio}x`:`<b>Mixed</b> — ratio ${nhnlRatio}x`;
+
+  // Advance / Decline
+  const adv=br.adv||0, dec=br.dec||0, total=adv+dec||1;
+  const adlEl=document.getElementById('adl-val');
+  adlEl.textContent=`${adv} / ${dec}`;
+  adlEl.className='gauge-val '+(adv>dec*1.5?'pos':dec>adv*1.5?'neg':'neut');
+  document.getElementById('adl-bar').style.width=(adv/total*100).toFixed(0)+'%';
+  document.getElementById('adl-bar').style.background=adv>dec?'var(--bull)':'var(--bear)';
+  document.getElementById('adl-sub').innerHTML=adv>dec?`<b>${(adv/total*100).toFixed(0)}%</b> advancing`:dec>adv?`<b>${(dec/total*100).toFixed(0)}%</b> declining`:'<b>Balanced</b>';
+
+  // Distribution Days
+  const distSPY=br.dist_days_spy||0, distQQQ=br.dist_days_qqq||0;
+  const maxDist=Math.max(distSPY,distQQQ);
+  const distEl=document.getElementById('dist-val');
+  distEl.textContent=`SPY:${distSPY} QQQ:${distQQQ}`;
+  distEl.className='gauge-val '+(maxDist>=4?'neg':maxDist>=2?'neut':'pos');
+  distEl.style.fontSize='18px';
+  document.getElementById('dist-bar').style.width=Math.min(100,maxDist/6*100)+'%';
+  document.getElementById('dist-sub').innerHTML=maxDist>=5?'<b>Heavy distribution</b> — reduce exposure':maxDist>=4?'<b>Caution</b> — institutions selling':maxDist>=2?'<b>Some selling</b> — watch closely':'<b>Clean</b> — no distribution';
 }
 
 function renderEarnings(){
