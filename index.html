@@ -938,7 +938,7 @@ function renderScreenerGrid(){
             <span class="scard-rank" style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">#${idx+1}</span>
             <span class="scard-ticker">${s.ticker}</span>
           </div>
-          <span class="scard-score" style="color:${s.score>=80?'#3fb950':s.score>=65?'#58a6ff':'#8b949e'}">${s.score.toFixed(1)}</span>
+          <span class="scard-score" style="color:${s.score>=80?'#3fb950':s.score>=65?'#e07b30':'#d29922'}">${s.score.toFixed(1)}</span>
         </div>
         <div class="scard-row2">
           <span class="strategy-badge ${s.strategy}">${STRAT_LABELS[s.strategy]||s.strategy}</span>
@@ -1006,7 +1006,7 @@ function renderLongTerm(){
             <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">#${idx+1}</span>
             <span class="scard-ticker">${s.ticker}</span>
           </div>
-          <span class="scard-score" style="color:${scoreVal>=80?'#3fb950':scoreVal>=65?'#58a6ff':'#8b949e'}">${scoreVal.toFixed(1)}</span>
+          <span class="scard-score" style="color:${scoreVal>=80?'#3fb950':scoreVal>=65?'#e07b30':'#d29922'}">${scoreVal.toFixed(1)}</span>
         </div>
         <div class="scard-row2">
           <span class="strategy-badge CANSLIM">${subLabel}</span>
