@@ -300,8 +300,19 @@ a.pill:hover{border-color:var(--accent);color:var(--accent)}
 
 
 /* ── THEME TOGGLE ── */
-#theme-toggle{font-family:var(--font-mono);font-size:9px;padding:3px 10px;border-radius:3px;cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--text3);transition:all .15s;margin-left:8px}
-#theme-toggle:hover{color:var(--text);border-color:var(--border2)}
+#theme-toggle{
+  position:relative;width:44px;height:24px;border-radius:12px;
+  background:var(--bg4);border:1px solid var(--border);
+  cursor:pointer;transition:background .2s;flex-shrink:0;
+  display:flex;align-items:center;padding:0 3px;
+}
+#theme-toggle::after{
+  content:'';width:18px;height:18px;border-radius:50%;
+  background:var(--text3);transition:transform .2s,background .2s;
+  display:block;
+}
+body.light-mode #theme-toggle{background:var(--accent);border-color:var(--accent)}
+body.light-mode #theme-toggle::after{transform:translateX(20px);background:#fff}
 body.light-mode{
   --bg:#f0f2f5;--bg2:#ffffff;--bg3:#f6f8fb;--bg4:#edf0f5;
   --border:#e2e7ef;--border2:#c8d3e0;
@@ -340,7 +351,6 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
   .logo{font-size:15px}
   #updated{display:none}
   #header-right{display:flex;align-items:center;gap:6px}
-  #acct-input{width:70px;font-size:11px;padding:2px 6px}
   #theme-toggle{font-size:10px;padding:2px 8px}
   .header-stat{display:none}
   .regime-badge{font-size:9px;padding:2px 7px}
@@ -455,8 +465,6 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
 /* ── EXPORT + ACCOUNT ── */
 #export-btn{font-family:var(--font-display);font-size:9px;font-weight:600;letter-spacing:.06em;padding:4px 12px;border-radius:4px;cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--text3);transition:all .15s;flex-shrink:0}
 #export-btn:hover{color:var(--accent);border-color:var(--accent)}
-#acct-input{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--text2);width:90px;font-family:var(--font-mono);outline:none}
-#acct-input:focus{border-color:var(--accent)}
 
 </style>
 </head>
@@ -487,7 +495,6 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;padding:0 4px">
     <span style="font-size:9px;color:var(--text3);font-family:var(--font-display);letter-spacing:.06em">ACCT $</span>
     <button id="theme-toggle" onclick="toggleTheme()">Light</button>
-    <input type="number" id="acct-input" value="10000" placeholder="Account $">
   </div>
 </div>
 
@@ -1219,7 +1226,7 @@ function pivotDist(pctFromPivot){
 
 // ── POSITION SIZE (Qullamaggie 0.5% risk rule) ────────────────────────────────
 function posSize(price, stopPct=7){
-  const acct=+document.getElementById('acct-input').value||10000;
+  const acct=10000;
   const riskAmt=acct*.005; // 0.5% of account
   const stopDollar=price*(stopPct/100);
   const shares=Math.floor(riskAmt/stopDollar);
@@ -1305,10 +1312,6 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 document.getElementById('clear-watch-btn').addEventListener('click',()=>{
   if(confirm('Clear all saved stocks?')){WATCHLIST=[];saveWatchlist();renderWatchlist();}
 });
-document.getElementById('acct-input').addEventListener('input',()=>{
-  document.querySelectorAll('.pos-size').forEach(el=>el.remove());
-  renderScreenerGrid();
-});
 
 document.querySelectorAll('.tf-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
@@ -1372,15 +1375,12 @@ init();
 
 // ── THEME TOGGLE ─────────────────────────────────────────────────────────────
 function toggleTheme(){
-  const isLight=document.body.classList.toggle('light-mode');
-  document.getElementById('theme-toggle').textContent=isLight?'Dark':'Light';
-  localStorage.setItem('me_theme',isLight?'light':'dark');
+  document.body.classList.toggle('light-mode');
+  localStorage.setItem('me_theme',document.body.classList.contains('light-mode')?'light':'dark');
 }
 (function(){
   if(localStorage.getItem('me_theme')==='light'){
     document.body.classList.add('light-mode');
-    const btn=document.getElementById('theme-toggle');
-    if(btn) btn.textContent='Dark';
   }
 })();
 
