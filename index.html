@@ -472,6 +472,7 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
 .tf-modal.active{background:var(--bg4);color:var(--accent);border-color:var(--accent)}
 
 </style>
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
 <div id="loading">
@@ -1492,47 +1493,36 @@ function filterBySearch(val){
 }
 
 
-// ── CHART MODAL (iframe-based) ────────────────────────────────────────────────
+// ── CHART MODAL (Lightweight Charts) ─────────────────────────────────────────
 let MODAL_TICKER = '';
 let MODAL_TF = 'D';
+let lwChart = null;
+let lwCandleSeries = null;
+let lwVolSeries = null;
+
 const MODAL_TFS = [
-  {label:'5m',  tv:'5'},
-  {label:'15m', tv:'15'},
-  {label:'1h',  tv:'60'},
-  {label:'4h',  tv:'240'},
-  {label:'1D',  tv:'D'},
-  {label:'1W',  tv:'W'},
-  {label:'1M',  tv:'M'},
+  {label:'Daily · 3M',   yf:'1d',  days:90},
+  {label:'Daily · 6M',   yf:'1d',  days:180},
+  {label:'Daily · 1Y',   yf:'1d',  days:365},
+  {label:'Weekly · 2Y',  yf:'1wk', days:730},
+  {label:'Monthly · 5Y', yf:'1mo', days:1825},
 ];
 
-function buildTVUrl(ticker, interval){
-  return `https://www.tradingview.com/widgetembed/?frameElementId=modal-iframe`
-    + `&symbol=${encodeURIComponent(ticker)}`
-    + `&interval=${interval}`
-    + `&hidesidetoolbar=0`
-    + `&hidetoptoolbar=0`
-    + `&symboledit=1`
-    + `&saveimage=0`
-    + `&toolbarbg=161b22`
-    + `&theme=dark`
-    + `&style=1`
-    + `&timezone=America%2FNew_York`
-    + `&studies=Volume%40tv-basicstudies`
-    + `&locale=en`;
-}
+// Default to 6M view for swing traders
 
 function openChartModal(ticker, name){
   const modal = document.getElementById('chart-modal');
   if(!modal) return;
   MODAL_TICKER = ticker;
-  MODAL_TF = 'D';
+  MODAL_TF = 'Daily · 6M';
   document.getElementById('modal-ticker').textContent = ticker;
   document.getElementById('modal-name').textContent = name || '';
   document.getElementById('modal-tv-link').href = `https://www.tradingview.com/chart/?symbol=${ticker}`;
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
   renderModalTFs();
-  loadModalIframe();
+  initLWChart();
+  loadChartData();
 }
 
 function closeChartModal(){
@@ -1540,8 +1530,116 @@ function closeChartModal(){
   if(!modal) return;
   modal.classList.remove('open');
   document.body.style.overflow = '';
-  const iframe = document.getElementById('modal-iframe');
-  if(iframe) iframe.src = '';
+  if(lwChart){ lwChart.remove(); lwChart=null; lwCandleSeries=null; lwVolSeries=null; }
+}
+
+function renderModalTFs(){
+  const bar = document.getElementById('modal-tfs');
+  if(!bar) return;
+  bar.innerHTML = MODAL_TFS.map(tf =>
+    `<button class="tf-modal${MODAL_TF===tf.label?' active':''}" onclick="setModalTF('${tf.label}')">${tf.label}</button>`
+  ).join('');
+}
+
+function setModalTF(tf){
+  MODAL_TF = tf;
+  renderModalTFs();
+  loadChartData();
+}
+
+function initLWChart(){
+  const container = document.getElementById('modal-chart-container');
+  if(!container) return;
+  container.innerHTML = '';
+  if(lwChart){ lwChart.remove(); lwChart=null; }
+
+  const isDark = !document.body.classList.contains('light-mode');
+  lwChart = LightweightCharts.createChart(container, {
+    width: container.offsetWidth,
+    height: container.offsetHeight,
+    layout: {
+      background: { color: isDark ? '#131722' : '#ffffff' },
+      textColor: isDark ? '#8b949e' : '#6b7a8d',
+      fontSize: 11,
+      fontFamily: "'JetBrains Mono', monospace",
+    },
+    grid: {
+      vertLines: { color: isDark ? '#1e2433' : '#e2e7ef' },
+      horzLines: { color: isDark ? '#1e2433' : '#e2e7ef' },
+    },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    rightPriceScale: { borderColor: isDark ? '#30363d' : '#e2e7ef' },
+    timeScale: {
+      borderColor: isDark ? '#30363d' : '#e2e7ef',
+      timeVisible: true,
+      secondsVisible: false,
+    },
+  });
+
+  lwCandleSeries = lwChart.addCandlestickSeries({
+    upColor: '#3fb950',
+    downColor: '#f85149',
+    borderUpColor: '#3fb950',
+    borderDownColor: '#f85149',
+    wickUpColor: '#3fb950',
+    wickDownColor: '#f85149',
+    priceScaleId: 'right',
+  });
+
+  lwVolSeries = lwChart.addHistogramSeries({
+    priceFormat: { type: 'volume' },
+    priceScaleId: 'volume',
+    scaleMargins: { top: 0.8, bottom: 0 },
+  });
+
+  lwChart.priceScale('volume').applyOptions({
+    scaleMargins: { top: 0.8, bottom: 0 },
+  });
+
+  window.addEventListener('resize', () => {
+    if(lwChart && container.offsetWidth > 0){
+      lwChart.applyOptions({ width: container.offsetWidth, height: container.offsetHeight });
+    }
+  });
+}
+
+async function loadChartData(){
+  const tfObj = MODAL_TFS.find(t => t.label === MODAL_TF) || MODAL_TFS[4];
+  const statusEl = document.getElementById('modal-chart-status');
+  if(statusEl) statusEl.textContent = 'Loading...';
+
+  try {
+    const end = Math.floor(Date.now()/1000);
+    const start = end - tfObj.days * 86400;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${MODAL_TICKER}`
+      + `?interval=${tfObj.yf}&period1=${start}&period2=${end}&events=history`;
+
+    const resp = await fetch(url);
+    const json = await resp.json();
+    const result = json?.chart?.result?.[0];
+    if(!result) throw new Error('No data');
+
+    const times = result.timestamp;
+    const q = result.indicators.quote[0];
+    const opens=q.open, highs=q.high, lows=q.low, closes=q.close, vols=q.volume;
+
+    const candles = [], volumes = [];
+    for(let i=0;i<times.length;i++){
+      if(!opens[i]||!closes[i]) continue;
+      const t = times[i];
+      candles.push({ time:t, open:+opens[i].toFixed(2), high:+highs[i].toFixed(2), low:+lows[i].toFixed(2), close:+closes[i].toFixed(2) });
+      volumes.push({ time:t, value:vols[i]||0, color: closes[i]>=opens[i] ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)' });
+    }
+
+    if(lwCandleSeries) lwCandleSeries.setData(candles);
+    if(lwVolSeries) lwVolSeries.setData(volumes);
+    if(lwChart) lwChart.timeScale().fitContent();
+    if(statusEl) statusEl.textContent = '';
+
+  } catch(e) {
+    if(statusEl) statusEl.textContent = 'Could not load data — try View on TradingView ↗';
+    console.error('Chart load error:', e);
+  }
 }
 
 function renderModalTFs(){
@@ -1602,13 +1700,10 @@ document.addEventListener('keydown', function(e){
       </div>
     </div>
 
-    <!-- Chart iframe -->
-    <div style="flex:1;overflow:hidden;background:#131722">
-      <iframe id="modal-iframe"
-        src=""
-        style="width:100%;height:100%;border:none;display:block"
-        allowfullscreen>
-      </iframe>
+    <!-- Lightweight Chart Container -->
+    <div style="flex:1;overflow:hidden;background:#131722;position:relative">
+      <div id="modal-chart-container" style="width:100%;height:100%"></div>
+      <div id="modal-chart-status" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-mono);font-size:11px;color:#8b949e;pointer-events:none"></div>
     </div>
 
   </div>
