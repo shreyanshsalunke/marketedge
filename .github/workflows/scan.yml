@@ -2,18 +2,24 @@ name: MarketEdge Daily Scan
 
 on:
   schedule:
-    # 9:32 PM UTC = 4:32 PM ET (accounts for DST automatically)
     - cron: '32 21 * * 1-5'
-  workflow_dispatch:  # allow manual trigger from GitHub UI
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   scan:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -24,13 +30,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-marketedge
           restore-keys: ${{ runner.os }}-pip-
 
       - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install yfinance pandas numpy requests PyGithub
+        run: pip install yfinance pandas numpy requests PyGithub
 
       - name: Run scanner
         env:
