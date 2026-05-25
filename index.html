@@ -1544,8 +1544,18 @@ function renderModalTFs(){
   const bar = document.getElementById('modal-tfs');
   if(!bar) return;
   bar.innerHTML = MODAL_TFS.map(tf =>
-    `<button class="tf-modal${MODAL_TF===tf.key?' active':''}" data-tf="${tf.key}" onclick="setModalTF('${tf.key}')">${tf.label}</button>`
+    `<button class="tf-modal${MODAL_TF===tf.key?' active':''}" data-tf="${tf.key}">${tf.label}</button>`
   ).join('');
+  bar.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      const tf = this.dataset.tf;
+      console.log('[TF] button clicked:', tf);
+      MODAL_TF = tf;
+      bar.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tf === tf));
+      renderCanvasChart();
+    });
+  });
 }
 
 function renderCanvasChart(){
