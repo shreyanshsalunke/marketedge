@@ -1013,11 +1013,27 @@ function renderScreenerGrid(){
   } else if(ACTIVE_SECTOR!=='ALL'){
   }
   const bySector=ACTIVE_SCREENER_SECTOR==='ALL'?all:all.filter(s=>s.sector===ACTIVE_SCREENER_SECTOR);
-  const filtered=ACTIVE_STRAT==='ALL'?bySector:bySector.filter(s=>s.strategy===ACTIVE_STRAT);
+  let filtered=ACTIVE_STRAT==='ALL'?bySector:bySector.filter(s=>s.strategy===ACTIVE_STRAT);
+  // Sort
+  filtered = [...filtered].sort((a,b)=>{
+    if(SORT_BY==='score') return b.score-a.score;
+    if(SORT_BY==='pivot') return (a.from_high_pct||99)-(b.from_high_pct||99);
+    if(SORT_BY==='eps')   return (b.eps||0)-(a.eps||0);
+    return b.rs_pctile-a.rs_pctile; // default: RS
+  });
   const label={qullamaggie:'Qullamaggie',minervini:'Minervini',oneil:"O'Neil/IBD",weinstein:'Weinstein',bearish:'Bearish',choppy:'Choppy'}[ACTIVE_MC]||ACTIVE_MC;
   const stratLabel=ACTIVE_STRAT==='ALL'?'All Setups':STRAT_LABELS[ACTIVE_STRAT]||ACTIVE_STRAT;
-  document.getElementById('screener-meta').textContent=
-    `${filtered.length} setups · ${label} · ${stratLabel} · Ranked by RS · US`;
+  const ready = filtered.filter(s=>s.status==='READY').length;
+  const good  = filtered.filter(s=>s.status==='GOOD').length;
+  const dev   = filtered.filter(s=>s.status==='DEVELOPING').length;
+  const sortBtns = `<span style="margin-left:8px;display:inline-flex;gap:3px">
+    <button onclick="setSortBy('rs')" style="font-family:var(--font-mono);font-size:8px;padding:1px 6px;border-radius:3px;border:1px solid var(--border);background:${SORT_BY==='rs'?'var(--bg4)':'var(--bg3)'};color:${SORT_BY==='rs'?'var(--accent)':'var(--text3)'};cursor:pointer">RS</button>
+    <button onclick="setSortBy('score')" style="font-family:var(--font-mono);font-size:8px;padding:1px 6px;border-radius:3px;border:1px solid var(--border);background:${SORT_BY==='score'?'var(--bg4)':'var(--bg3)'};color:${SORT_BY==='score'?'var(--accent)':'var(--text3)'};cursor:pointer">Score</button>
+    <button onclick="setSortBy('pivot')" style="font-family:var(--font-mono);font-size:8px;padding:1px 6px;border-radius:3px;border:1px solid var(--border);background:${SORT_BY==='pivot'?'var(--bg4)':'var(--bg3)'};color:${SORT_BY==='pivot'?'var(--accent)':'var(--text3)'};cursor:pointer">Pivot</button>
+    <button onclick="setSortBy('eps')" style="font-family:var(--font-mono);font-size:8px;padding:1px 6px;border-radius:3px;border:1px solid var(--border);background:${SORT_BY==='eps'?'var(--bg4)':'var(--bg3)'};color:${SORT_BY==='eps'?'var(--accent)':'var(--text3)'};cursor:pointer">EPS</button>
+  </span>`;
+  const statusSummary = `<span style="margin-left:8px;font-size:9px;color:var(--text3)"><span style="color:#3fb950">${ready} ready</span> · <span style="color:#58a6ff">${good} good</span> · <span style="color:var(--text3)">${dev} dev</span></span>`;
+  document.getElementById('screener-meta').innerHTML = `${filtered.length} setups · ${label} · ${stratLabel}` + statusSummary + sortBtns;
   const grid=document.getElementById('screener-grid');
   grid.innerHTML=filtered.map((s,idx)=>{
     const sfWarn=s.sf>15;
@@ -1044,7 +1060,9 @@ function renderScreenerGrid(){
           ${earningsFlag(s.ticker)}
           <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-left:auto">RS ${s.rs}th</span>
         </div>
-        <div class="scard-pivot-bar"><div class="scard-pivot-fill" style="width:${barW}%;background:${barCol}"></div></div>
+        <div style="height:3px;background:var(--bg4);border-radius:2px;margin-top:7px;overflow:hidden">
+          <div style="height:100%;width:${Math.min(100,s.score)}%;background:${s.score>=80?'#3fb950':s.score>=65?'#e07b30':'#d29922'};border-radius:2px"></div>
+        </div>
       </div>
       <div class="scard-hover">
         <div class="hover-grid">
@@ -1794,6 +1812,14 @@ document.addEventListener('click', function(e){
     window.open('https://www.tradingview.com/chart/?symbol=' + ticker, '_blank');
   }
 }, true);
+
+
+// ── SORT ──────────────────────────────────────────────────────────────────────
+let SORT_BY = 'rs';
+function setSortBy(by){
+  SORT_BY = by;
+  renderScreenerGrid();
+}
 
 </script>
 
