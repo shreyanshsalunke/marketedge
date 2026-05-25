@@ -509,6 +509,7 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
 
   </div>
   <!-- Regime warning banner -->
+  <div id="regime-warning" style="display:none"></div>
   <div id="regime-banner"></div>
   <div id="screener-sector-bar"></div>
   <!-- Auto-suggest banner -->
@@ -1183,6 +1184,7 @@ function renderSectorFilter(){
 // ── REGIME WARNING ────────────────────────────────────────────────────────────
 function renderRegimeWarning(){
   const el=document.getElementById('regime-warning');
+  if(!el) return;
   const br=DATA.breadth;
   const mco=br.mcclellan||0, pct=br.pct_above_50sma||50;
   if(ACTIVE_MC==='bullish'&&(mco<-30||pct<35)){
