@@ -539,7 +539,7 @@ const MOCK = {
   market_regime: "NEUTRAL",
   breadth: { mcclellan: 45.2, pct_above_50sma: 68.0, vix: 16.7, fear_greed: 62,
              adv: 2184, dec: 847, new_highs: 284, new_lows: 42,
-             dist_days_spy: 2, dist_days_qqq: 1 },
+             spy_dist_days: 2, qqq_dist_days: 1 },
   indexes: [
     { sym:"SPY", name:"S&P 500",      price:531.42, d1:0.82,  d7:2.14,  flag:"US", type:"index" },
     { sym:"QQQ", name:"NASDAQ 100",   price:447.18, d1:1.24,  d7:3.22,  flag:"US", type:"index" },
@@ -696,7 +696,7 @@ function renderBreadth(){
   document.getElementById('adl-sub').innerHTML=adv>dec?`<b>${(adv/total*100).toFixed(0)}%</b> advancing`:dec>adv?`<b>${(dec/total*100).toFixed(0)}%</b> declining`:'<b>Balanced</b>';
 
   // Distribution Days
-  const distSPY=br.dist_days_spy||0, distQQQ=br.dist_days_qqq||0;
+  const distSPY=br.spy_dist_days||0, distQQQ=br.qqq_dist_days||0;
   const maxDist=Math.max(distSPY,distQQQ);
   const distEl=document.getElementById('dist-val');
   distEl.textContent=`SPY:${distSPY} QQQ:${distQQQ}`;
