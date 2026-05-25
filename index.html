@@ -461,10 +461,6 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
     </div>
   </div>
 
-  <div class="section-title">Earnings This Week</div>
-  <div id="earnings-wrap">
-    <div class="earnings-grid" id="earnings-grid"></div>
-  </div>
 </div>
 
 <!-- PANE 2: SECTORS -->
@@ -510,6 +506,12 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
   </div>
   <!-- Regime warning banner -->
   <div id="regime-warning" style="display:none"></div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+    <input id="ticker-search" type="text" placeholder="Search ticker..." 
+      style="font-family:var(--font-mono);font-size:12px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:6px 12px;color:var(--text);width:180px;outline:none"
+      oninput="filterBySearch(this.value)">
+    <span id="search-count" style="font-family:var(--font-mono);font-size:11px;color:var(--text3)"></span>
+  </div>
   <div id="regime-banner"></div>
   <div id="screener-sector-bar"></div>
   <!-- Auto-suggest banner -->
@@ -706,6 +708,7 @@ function renderBreadth(){
 
 function renderEarnings(){
   const grid=document.getElementById('earnings-grid');
+  if(!grid) return;
   const days=['Mon','Tue','Wed','Thu','Fri'];
   grid.innerHTML=days.map(day=>{
     const items=DATA.earnings.filter(e=>e.day===day);
@@ -935,7 +938,7 @@ function renderScreenerGrid(){
             <span class="scard-rank" style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">#${idx+1}</span>
             <span class="scard-ticker">${s.ticker}</span>
           </div>
-          <span class="scard-score">${s.score.toFixed(1)}</span>
+          <span class="scard-score" style="color:${s.score>=80?'#3fb950':s.score>=65?'#58a6ff':'#8b949e'}">${s.score.toFixed(1)}</span>
         </div>
         <div class="scard-row2">
           <span class="strategy-badge ${s.strategy}">${STRAT_LABELS[s.strategy]||s.strategy}</span>
@@ -1003,7 +1006,7 @@ function renderLongTerm(){
             <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">#${idx+1}</span>
             <span class="scard-ticker">${s.ticker}</span>
           </div>
-          <span class="scard-score">${scoreVal.toFixed(1)}</span>
+          <span class="scard-score" style="color:${scoreVal>=80?'#3fb950':scoreVal>=65?'#58a6ff':'#8b949e'}">${scoreVal.toFixed(1)}</span>
         </div>
         <div class="scard-row2">
           <span class="strategy-badge CANSLIM">${subLabel}</span>
@@ -1258,12 +1261,15 @@ async function init(){
   const regime=DATA.market_regime||'NEUTRAL';
   const rb=document.getElementById('regime-badge');
   rb.textContent=regime;rb.className=`regime-badge ${regime}`;
-  document.getElementById('updated').textContent=
-    'Updated: '+new Date(DATA.scanned_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const scanDate=new Date(DATA.scanned_at);
+  const ageHours=(Date.now()-scanDate)/3600000;
+  const updEl=document.getElementById('updated');
+  updEl.textContent='Updated: '+scanDate.toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  updEl.style.color=ageHours>24?'var(--bear)':ageHours>12?'var(--neut)':'var(--text3)';
+  if(ageHours>24) updEl.title='Data is stale — scanner may not have run';
 
   renderIndexes();
   renderBreadth();
-  renderEarnings();
   renderSectorMap();
   renderSectorRotation();
   renderStrategyTabs();
@@ -1361,6 +1367,22 @@ document.getElementById('export-btn').addEventListener('click',()=>{
   a.download=`marketedge_${mc}_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 });
+
+
+// ── TICKER SEARCH ─────────────────────────────────────────────────────────────
+function filterBySearch(val){
+  const q=val.trim().toUpperCase();
+  const cards=document.querySelectorAll('#screener-grid .scard');
+  let shown=0;
+  cards.forEach(c=>{
+    const ticker=c.dataset.ticker||'';
+    const match=!q||ticker.includes(q);
+    c.style.display=match?'':'none';
+    if(match) shown++;
+  });
+  const el=document.getElementById('search-count');
+  if(el) el.textContent=q?`${shown} match${shown!==1?'es':''}`:'';
+}
 
 </script>
 </body>
