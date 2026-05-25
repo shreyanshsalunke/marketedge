@@ -305,6 +305,43 @@ a.pill:hover{border-color:var(--accent);color:var(--accent)}
 ::-webkit-scrollbar-track{background:var(--bg2)}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
+
+/* ── THEME TOGGLE ── */
+#theme-toggle{font-family:var(--font-mono);font-size:9px;padding:3px 10px;border-radius:3px;cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--text3);transition:all .15s;margin-left:8px}
+#theme-toggle:hover{color:var(--text);border-color:var(--border2)}
+body.light-mode{
+  --bg:#f0f2f5;--bg2:#ffffff;--bg3:#f6f8fb;--bg4:#edf0f5;
+  --border:#e2e7ef;--border2:#c8d3e0;
+  --text:#0d1b2e;--text2:#2d3f55;--text3:#6b7a8d;
+  --accent:#0f5fa8;--accent2:#1976d2;
+  --bull:#047857;--bull2:#065f46;--bull-bg:rgba(5,120,85,.08);
+  --bear:#b91c1c;--bear2:#991b1b;--bear-bg:rgba(185,28,28,.08);
+  --neut:#92400e;--neut-bg:rgba(146,64,14,.08);
+  --purple:#5b21b6;--purple-bg:rgba(91,33,182,.08);
+  --cyan:#0e7490;--teal:#0f766e;
+}
+body.light-mode #header{background:rgba(255,255,255,.97)}
+/* ── SECTOR FILTER IN SCREENER ── */
+#screener-sector-bar{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.sec-pill{font-family:var(--font-mono);font-size:9px;padding:3px 10px;border-radius:3px;cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--text3);transition:all .12s;white-space:nowrap}
+.sec-pill:hover{color:var(--text2);border-color:var(--border2)}
+.sec-pill.active{background:var(--bg4);color:var(--accent);border-color:var(--accent)}
+/* ── REGIME BANNER ── */
+#regime-banner{display:none;padding:10px 16px;margin-bottom:12px;border-radius:4px;font-size:11px;font-family:var(--font-mono)}
+#regime-banner.bear{background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.25);color:#f85149}
+#regime-banner.neut{background:rgba(210,153,34,.08);border:1px solid rgba(210,153,34,.25);color:#d29922}
+/* ── MOBILE TAP ── */
+@media(max-width:768px){
+  .scard:hover .scard-hover{display:none}
+  .scard.tapped .scard-hover{display:block}
+  #screener-grid{grid-template-columns:1fr!important}
+}
+/* ── WATCHLIST SAVE PRICE ── */
+.wl-pnl{font-family:var(--font-mono);font-size:10px;font-weight:600}
+.wl-pnl.pos{color:var(--bull)}.wl-pnl.neg{color:var(--bear)}
+/* ── ERN BADGE ── */
+.earn-flag{font-size:8px;font-weight:700;font-family:var(--font-mono);padding:2px 6px;border-radius:3px;background:rgba(248,81,73,.15);color:#f85149;border:1px solid rgba(248,81,73,.3);white-space:nowrap;margin-left:4px}
+
 /* ── EARNINGS FLAG ── */
 .earn-flag{font-size:8px;font-weight:700;font-family:var(--font-display);padding:2px 6px;border-radius:20px;letter-spacing:.04em;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25);white-space:nowrap}
 
@@ -367,6 +404,7 @@ a.pill:hover{border-color:var(--accent);color:var(--accent)}
   <div class="tab-btn" data-pane="watchlist"><span class="dot"></span>Watchlist <span id="watch-count" style="font-size:8px;margin-left:3px;opacity:.6"></span></div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:8px;padding:0 4px">
     <span style="font-size:9px;color:var(--text3);font-family:var(--font-display);letter-spacing:.06em">ACCT $</span>
+    <button id="theme-toggle" onclick="toggleTheme()">Light</button>
     <input type="number" id="acct-input" value="10000" placeholder="Account $">
   </div>
 </div>
@@ -471,7 +509,8 @@ a.pill:hover{border-color:var(--accent);color:var(--accent)}
 
   </div>
   <!-- Regime warning banner -->
-  <div id="regime-warning"></div>
+  <div id="regime-banner"></div>
+  <div id="screener-sector-bar"></div>
   <!-- Auto-suggest banner -->
   <div id="mc-suggest"></div>
   <!-- Sector filter -->
@@ -836,6 +875,7 @@ function autoSuggestMode(){
 }
 
 function switchMC(mc){
+  ACTIVE_SCREENER_SECTOR='ALL';
   ACTIVE_MC=mc;
   ACTIVE_STRAT='ALL';
   document.querySelectorAll('.mc-btn').forEach(b=>{
@@ -860,7 +900,8 @@ function renderScreenerGrid(){
     const sectorETFs={'Technology':'XLK','Communication':'XLC','Financials':'XLF','Health Care':'XLV','Healthcare':'XLV','Industrials':'XLI','Consumer':'XLY','Energy':'XLE','Materials':'XLB','Real Estate':'XLRE','Utilities':'XLU','Biotech':'XBI','Commodities':'GLD','Staples':'XLP','Telecom':'XLC'};
   } else if(ACTIVE_SECTOR!=='ALL'){
   }
-  const filtered=ACTIVE_STRAT==='ALL'?all:all.filter(s=>s.strategy===ACTIVE_STRAT);
+  const bySector=ACTIVE_SCREENER_SECTOR==='ALL'?all:all.filter(s=>s.sector===ACTIVE_SCREENER_SECTOR);
+  const filtered=ACTIVE_STRAT==='ALL'?bySector:bySector.filter(s=>s.strategy===ACTIVE_STRAT);
   const label={qullamaggie:'Qullamaggie',minervini:'Minervini',oneil:"O'Neil/IBD",weinstein:'Weinstein',bearish:'Bearish',choppy:'Choppy'}[ACTIVE_MC]||ACTIVE_MC;
   const stratLabel=ACTIVE_STRAT==='ALL'?'All Setups':STRAT_LABELS[ACTIVE_STRAT]||ACTIVE_STRAT;
   document.getElementById('screener-meta').textContent=
@@ -888,6 +929,7 @@ function renderScreenerGrid(){
         <div class="scard-row2">
           <span class="strategy-badge ${s.strategy}">${STRAT_LABELS[s.strategy]||s.strategy}</span>
           <span class="status-badge ${s.status}">${s.status}</span>
+          ${earningsFlag(s.ticker)}
           <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-left:auto">RS ${s.rs}th</span>
         </div>
         <div class="scard-pivot-bar"><div class="scard-pivot-fill" style="width:${barW}%;background:${barCol}"></div></div>
@@ -1153,16 +1195,6 @@ function renderRegimeWarning(){
 }
 
 // ── EXPORT TO CSV ─────────────────────────────────────────────────────────────
-function exportCSV(){
-  const dataKey={qullamaggie:'qullamaggie',minervini:'minervini',oneil:'oneil',weinstein:'weinstein',bearish:'bearish',choppy:'choppy'}[ACTIVE_MC]||'qullamaggie';
-  const rows=DATA[dataKey]||[];
-  const headers=['Ticker','Name','Score','RS','Strategy','Status','EPS%','Rev%','Sector','Price'];
-  const csv=[headers.join(','),...rows.map(s=>[s.ticker,`"${s.name||''}"`,s.score||'',s.rs||'',s.strategy||'',s.status||'',s.eps||'',s.rev||'',`"${s.sector||''}"`,s.price||''].join(','))].join('\n');
-  const a=document.createElement('a');
-  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download=`marketedge_${ACTIVE_MC}_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-}
 
 // ── EVENT HANDLERS ────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(btn=>{
@@ -1174,7 +1206,6 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     if(btn.dataset.pane==='watchlist') renderWatchlist();
   });
 });
-document.getElementById('export-btn').addEventListener('click',exportCSV);
 document.getElementById('clear-watch-btn').addEventListener('click',()=>{
   if(confirm('Clear all saved stocks?')){WATCHLIST=[];saveWatchlist();renderWatchlist();}
 });
@@ -1239,6 +1270,94 @@ async function init(){
   document.getElementById('loading').style.display='none';
 }
 init();
+
+// ── THEME TOGGLE ─────────────────────────────────────────────────────────────
+function toggleTheme(){
+  const isLight=document.body.classList.toggle('light-mode');
+  document.getElementById('theme-toggle').textContent=isLight?'Dark':'Light';
+  localStorage.setItem('me_theme',isLight?'light':'dark');
+}
+(function(){
+  if(localStorage.getItem('me_theme')==='light'){
+    document.body.classList.add('light-mode');
+    const btn=document.getElementById('theme-toggle');
+    if(btn) btn.textContent='Dark';
+  }
+})();
+
+// ── SCREENER SECTOR FILTER ────────────────────────────────────────────────────
+let ACTIVE_SCREENER_SECTOR='ALL';
+function renderScreenerSectorBar(){
+  const all=DATA[{qullamaggie:'qullamaggie',minervini:'minervini',oneil:'oneil',weinstein:'weinstein'}[ACTIVE_MC]]||[];
+  const sectors=[...new Set(all.map(s=>s.sector).filter(Boolean))].sort();
+  const bar=document.getElementById('screener-sector-bar');
+  if(!bar) return;
+  bar.innerHTML=`<button class="sec-pill${ACTIVE_SCREENER_SECTOR==='ALL'?' active':''}" data-sec="ALL">All sectors</button>`
+    +sectors.map(s=>`<button class="sec-pill${ACTIVE_SCREENER_SECTOR===s?' active':''}" data-sec="${s}">${s}</button>`).join('');
+  bar.querySelectorAll('.sec-pill').forEach(b=>{
+    b.addEventListener('click',()=>{
+      ACTIVE_SCREENER_SECTOR=b.dataset.sec;
+      renderScreener();
+    });
+  });
+}
+
+// ── REGIME BANNER ─────────────────────────────────────────────────────────────
+function updateRegimeBanner(){
+  const regime=DATA.market_regime||'NEUTRAL';
+  const el=document.getElementById('regime-banner');
+  if(!el) return;
+  if(regime==='BEARISH'){
+    el.className='bear';
+    el.style.display='block';
+    el.textContent='Market regime: BEARISH — swing setups are lower probability. Reduce position sizes and be selective.';
+  } else if(regime==='NEUTRAL'){
+    el.className='neut';
+    el.style.display='block';
+    el.textContent='Market regime: NEUTRAL — mixed conditions. Favour high-RS setups with strong fundamentals.';
+  } else {
+    el.style.display='none';
+  }
+}
+
+// ── MOBILE TAP TO EXPAND ──────────────────────────────────────────────────────
+document.addEventListener('click',function(e){
+  const card=e.target.closest('.scard');
+  if(!card) return;
+  if(window.innerWidth>768) return;
+  const link=e.target.closest('a');
+  if(link) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const already=card.classList.contains('tapped');
+  document.querySelectorAll('.scard.tapped').forEach(c=>c.classList.remove('tapped'));
+  if(!already) card.classList.add('tapped');
+},true);
+
+// ── BETTER CSV EXPORT ─────────────────────────────────────────────────────────
+document.getElementById('export-btn').addEventListener('click',()=>{
+  const mc=ACTIVE_MC;
+  const data=DATA[mc]||[];
+  const filtered=ACTIVE_STRAT==='ALL'?data:data.filter(s=>s.strategy===ACTIVE_STRAT);
+  const sectorFiltered=ACTIVE_SCREENER_SECTOR==='ALL'?filtered:filtered.filter(s=>s.sector===ACTIVE_SCREENER_SECTOR);
+  const rows=[['Rank','Ticker','Strategy','Status','Score','RS','EPS%','Rev%','From Pivot%','Short Float%','Sector','Price','Methodology','Earnings']];
+  sectorFiltered.forEach((s,i)=>{
+    const ern=DATA.earnings?.find(e=>e.ticker===s.ticker);
+    rows.push([
+      i+1, s.ticker, s.strategy, s.status, s.score?.toFixed(1),
+      s.rs, s.eps||'', s.rev||'',
+      (s.from_high_pct||s.from_pivot||''), s.sf||'',
+      s.sector||'', s.price||'', mc,
+      ern?`${ern.day} est ${ern.est_eps}`:''
+    ]);
+  });
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=`marketedge_${mc}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+});
+
 </script>
 </body>
 </html>
