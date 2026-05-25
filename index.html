@@ -324,11 +324,100 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
 #regime-banner.bear{background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.25);color:#f85149}
 #regime-banner.neut{background:rgba(210,153,34,.08);border:1px solid rgba(210,153,34,.25);color:#d29922}
 /* ── MOBILE TAP ── */
+
+/* ══════════════════════════════════════════════════════
+   MOBILE — full responsive overhaul (≤768px)
+══════════════════════════════════════════════════════ */
 @media(max-width:768px){
+  /* Base font */
+  body{font-size:14px}
+
+  /* Pane padding */
+  .pane{padding:14px 12px}
+
+  /* Header */
+  #header{padding:0 12px;height:48px;gap:8px;flex-wrap:nowrap;overflow:hidden}
+  .logo{font-size:15px}
+  #updated{display:none}
+  #header-right{display:flex;align-items:center;gap:6px}
+  #acct-input{width:70px;font-size:11px;padding:2px 6px}
+  #theme-toggle{font-size:10px;padding:2px 8px}
+  .header-stat{display:none}
+  .regime-badge{font-size:9px;padding:2px 7px}
+
+  /* Tabs */
+  #tabs{padding:0 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #tabs::-webkit-scrollbar{display:none}
+  .tab-btn{font-size:10px;padding:0 12px;height:38px;white-space:nowrap}
+
+  /* Index grid - 2 cols on mobile */
+  #index-grid{grid-template-columns:repeat(2,1fr)!important;gap:8px}
+  .idx-card{padding:12px 14px}
+  .idx-price{font-size:18px}
+  .idx-sym{font-size:14px}
+
+  /* Breadth - 1 col stack */
+  #breadth-row{grid-template-columns:1fr 1fr!important;gap:8px}
+  .breadth-card{padding:14px 16px}
+  .gauge-val{font-size:24px}
+  .breadth-title{font-size:10px}
+
+  /* Section titles */
+  .section-title{font-size:9px;margin-bottom:10px}
+
+  /* Screener */
+  #screener-grid{grid-template-columns:1fr!important;gap:8px}
+  #mc-bar{gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;padding-bottom:4px;scrollbar-width:none}
+  #mc-bar::-webkit-scrollbar{display:none}
+  .mc-btn{font-size:10px;padding:5px 12px;white-space:nowrap;flex-shrink:0}
+  #strategy-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;padding-bottom:4px;scrollbar-width:none;gap:4px}
+  #strategy-tabs::-webkit-scrollbar{display:none}
+  .strat-tab{white-space:nowrap;flex-shrink:0;font-size:10px;padding:4px 10px}
+
+  /* Search */
+  #ticker-search{width:100%!important}
+
+  /* Cards */
+  .scard-ticker{font-size:20px}
+  .scard-score{font-size:24px}
+  .scard-default{padding:14px 16px 12px}
+  .hover-val{font-size:14px}
+  .hover-label{font-size:11px}
+  .hover-grid{grid-template-columns:1fr 1fr;gap:6px}
+
+  /* Mode buttons */
+  #mode-bar{width:100%}
+  .mode-btn{flex:1;text-align:center;font-size:10px;padding:5px 8px}
+
+  /* Sectors */
+  #sectors-layout{grid-template-columns:1fr!important}
+  #sector-map{grid-template-columns:repeat(3,1fr)!important;gap:5px}
+  .sector-tile{padding:14px 10px}
+  .sector-pct{font-size:16px}
+  #tf-bar{overflow-x:auto;-webkit-overflow-scrolling:touch;display:flex;flex-wrap:nowrap;padding-bottom:4px;scrollbar-width:none}
+  #tf-bar::-webkit-scrollbar{display:none}
+  .tf-btn{flex-shrink:0;font-size:10px;padding:4px 10px}
+
+  /* Screener sector bar */
+  #screener-sector-bar{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap!important;padding-bottom:4px;scrollbar-width:none}
+  #screener-sector-bar::-webkit-scrollbar{display:none}
+  .sec-pill{flex-shrink:0}
+
+  /* Watchlist */
+  #watchlist-grid{grid-template-columns:1fr!important}
+
+  /* Tap to expand */
   .scard:hover .scard-hover{display:none}
   .scard.tapped .scard-hover{display:block}
-  #screener-grid{grid-template-columns:1fr!important}
 }
+
+/* Small phones */
+@media(max-width:380px){
+  #index-grid{grid-template-columns:1fr 1fr!important}
+  #breadth-row{grid-template-columns:1fr!important}
+  .idx-price{font-size:16px}
+}
+
 /* ── WATCHLIST SAVE PRICE ── */
 .wl-pnl{font-family:var(--font-mono);font-size:10px;font-weight:600}
 .wl-pnl.pos{color:var(--bull)}.wl-pnl.neg{color:var(--bear)}
