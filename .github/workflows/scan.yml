@@ -37,7 +37,7 @@ jobs:
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
           FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-          GITHUB_REPO: ${{ secrets.GITHUB_REPO }}
+          GITHUB_REPO: ${{ secrets.GH_REPO }}
         run: python3 scanner_market.py
 
       - name: Commit market_data.json
