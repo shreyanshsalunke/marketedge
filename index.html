@@ -1329,6 +1329,7 @@ function getLeadingSectors(){
 }
 function renderSectorFilter(){
   const bar=document.getElementById('sector-filter-bar');
+  if(!bar) return;
   const sectors=[...new Set([...(DATA.swing||[]),...(DATA.bearish||[]),...(DATA.choppy||[])].map(s=>s.sector).filter(Boolean))];
   const leading=getLeadingSectors();
   const sectorETFs={'Technology':'XLK','Communication':'XLC','Financials':'XLF','Health Care':'XLV','Healthcare':'XLV','Industrials':'XLI','Consumer':'XLY','Energy':'XLE','Materials':'XLB','Real Estate':'XLRE','Utilities':'XLU','Biotech':'XBI','Commodities':'GLD','Staples':'XLP','Telecom':'XLC'};
@@ -1462,9 +1463,10 @@ function toggleTheme(){
 // ── SCREENER SECTOR FILTER ────────────────────────────────────────────────────
 let ACTIVE_SCREENER_SECTOR='ALL';
 function renderScreenerSectorBar(){
+  const bar=document.getElementById('screener-sector-bar');
+  if(!bar) return;
   const all=DATA[{qullamaggie:'qullamaggie',minervini:'minervini',oneil:'oneil',weinstein:'weinstein'}[ACTIVE_MC]]||[];
   const sectors=[...new Set(all.map(s=>s.sector).filter(Boolean))].sort();
-  const bar=document.getElementById('screener-sector-bar');
   if(!bar) return;
   bar.innerHTML=`<button class="sec-pill${ACTIVE_SCREENER_SECTOR==='ALL'?' active':''}" data-sec="ALL">All sectors</button>`
     +sectors.map(s=>`<button class="sec-pill${ACTIVE_SCREENER_SECTOR===s?' active':''}" data-sec="${s}">${s}</button>`).join('');
