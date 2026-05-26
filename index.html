@@ -37,11 +37,13 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
   padding:0 24px;height:54px;
 }
 .logo{
-  font-family:var(--font-display);font-size:17px;font-weight:700;
-  color:var(--text);letter-spacing:.08em;
-  flex-shrink:0;
+  font-family:var(--font-display);font-size:22px;font-weight:700;
+  background:linear-gradient(135deg,#58a6ff 0%,#3fb950 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  letter-spacing:.06em;flex-shrink:0;
 }
-.logo sup{font-size:9px;font-weight:400;color:var(--text3);letter-spacing:.1em;margin-left:4px}
+.logo sup{font-size:9px;font-weight:500;color:var(--text3);letter-spacing:.12em;margin-left:5px;-webkit-text-fill-color:var(--text3)}
 .header-mid{flex:1;display:flex;align-items:center;gap:10px}
 .regime-badge{
   font-family:var(--font-mono);font-size:9px;font-weight:600;
@@ -1504,32 +1506,6 @@ function updateRegimeBanner(){
   }
 }
 
-// ── MOBILE TAP TO EXPAND ──────────────────────────────────────────────────────
-document.addEventListener('click',function(e){
-  const card=e.target.closest('.scard');
-  if(!card) return;
-  const link=e.target.closest('a');
-  if(link) return;
-  const btn=e.target.closest('button');
-  if(btn) return;
-  const ticker=card.dataset.ticker;
-  if(!ticker) return;
-
-  if(window.innerWidth<=768){
-    // Mobile: first tap expands, second tap opens chart modal
-    if(!card.classList.contains('tapped')){
-      e.preventDefault();
-      e.stopPropagation();
-      document.querySelectorAll('.scard.tapped').forEach(c=>c.classList.remove('tapped'));
-      card.classList.add('tapped');
-    } else {
-      window.open('https://www.tradingview.com/chart/?symbol='+ticker,'_blank');
-    }
-  } else {
-    window.open('https://www.tradingview.com/chart/?symbol='+ticker,'_blank');
-  }
-},true);
-
 // ── BETTER CSV EXPORT ─────────────────────────────────────────────────────────
 document.getElementById('export-btn').addEventListener('click',()=>{
   const mc=ACTIVE_MC;
@@ -1669,9 +1645,13 @@ function renderThematic(){
 }
 
 function toggleThemeCard(idx){
-  const card = document.getElementById('theme-' + idx);
-  if(!card) return;
-  card.classList.toggle('active');
+  const clicked = document.getElementById('theme-' + idx);
+  if(!clicked) return;
+  const isActive = clicked.classList.contains('active');
+  // Close all theme cards
+  document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
+  // Open clicked one only if it was closed
+  if(!isActive) clicked.classList.add('active');
 }
 
 </script>
