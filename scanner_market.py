@@ -753,6 +753,41 @@ def compute_rs_ranks(data: dict, valid: list) -> dict:
 # ─── BASE RESULT ──────────────────────────────────────────────────────────────
 _SPY: pd.DataFrame = pd.DataFrame()
 
+
+def compute_score_bonuses(ticker, daily, rs_pctile, score, cache):
+    """Apply up to 15 bonus points based on earnings quality, rel vol on breakout, 52w high proximity, short interest."""
+    si = cache.get(ticker, {})
+    bonus = 0
+
+    # 1. Earnings beat quality (+5 pts) — beat estimates by >10%
+    eps_beat = si.get("eps_beat_pct", 0) or 0
+    if eps_beat >= 20: bonus += 5
+    elif eps_beat >= 10: bonus += 3
+
+    # 2. 52-week high proximity (+4 pts) — within 3% of 52w high is strongest
+    if len(daily) >= 50:
+        high52 = float(daily["High"].rolling(252, min_periods=50).max().iloc[-1])
+        price  = float(daily["Close"].iloc[-1])
+        from_high = (high52 - price) / high52 * 100 if high52 > 0 else 99
+        if from_high <= 3:  bonus += 4
+        elif from_high <= 8: bonus += 2
+
+    # 3. Short interest squeeze potential (+3 pts) — high short float means fuel
+    sf = si.get("short_float", 0) or 0
+    if 10 <= sf <= 30: bonus += 3   # sweet spot — meaningful but not trapped
+    elif sf > 30: bonus += 1        # very high short, harder to squeeze cleanly
+
+    # 4. Relative volume on breakout (+3 pts) — today's volume vs 50-day avg
+    if len(daily) >= 50:
+        vol_today = float(daily["Volume"].iloc[-1])
+        vol_avg50 = float(daily["Volume"].tail(50).mean())
+        rel_vol = vol_today / max(vol_avg50, 1)
+        if rel_vol >= 2.0: bonus += 3
+        elif rel_vol >= 1.5: bonus += 2
+        elif rel_vol >= 1.2: bonus += 1
+
+    return min(score + bonus, 100)  # cap at 100
+
 def base_result(ticker, daily, rs_pctile, score, status, tags, extra, scan, cache) -> dict:
     si = cache.get(ticker, {})
     wt = weeks_tight(daily)
@@ -779,7 +814,7 @@ def base_result(ticker, daily, rs_pctile, score, status, tags, extra, scan, cach
         "rev_accel":       si.get("rev_accelerating", False),
         "eps_positive":    si.get("eps_positive", None),
         "q_data":          si.get("q_data_available", False),
-        "score":           score,
+        "score":           compute_score_bonuses(ticker, daily, rs_pctile, score, cache),
         "status":          status,
         "tags":            tags,
         "chart":           ohlc_chart(daily, CFG["chart_bars"]),
