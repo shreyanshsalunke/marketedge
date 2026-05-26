@@ -178,6 +178,83 @@ def rs_raw(close):
 def pct_rank(arr, v):
     return float(np.sum(arr <= v) / len(arr) * 100) if len(arr) else 0.0
 
+def rs_line_new_high(daily: pd.DataFrame, spy: pd.DataFrame, lookback: int = 252) -> bool:
+    """True if the RS line (stock/SPY) is at or near a 52-week high — O'Neil's strongest signal."""
+    if spy is None or len(spy) == 0: return False
+    try:
+        bars = min(lookback, len(daily))
+        tail = daily.tail(bars)
+        spy_a = spy["Close"].reindex(tail.index, method="ffill").dropna()
+        stock_a = tail["Close"].reindex(spy_a.index).dropna()
+        if len(stock_a) < 20: return False
+        rs = stock_a.values / spy_a.values
+        rs_52w_high = max(rs[-252:]) if len(rs) >= 252 else max(rs)
+        rs_current  = rs[-1]
+        # RS line within 2% of 52-week high = making new highs
+        return rs_current >= rs_52w_high * 0.98
+    except: return False
+
+def rs_line_trending_up(daily: pd.DataFrame, spy: pd.DataFrame, weeks: int = 4) -> bool:
+    """True if RS line has been rising over the last N weeks."""
+    if spy is None or len(spy) == 0: return False
+    try:
+        bars = weeks * 5 + 5
+        tail = daily.tail(bars)
+        spy_a = spy["Close"].reindex(tail.index, method="ffill").dropna()
+        stock_a = tail["Close"].reindex(spy_a.index).dropna()
+        if len(stock_a) < weeks * 5: return False
+        rs = stock_a.values / spy_a.values
+        # Simple linear regression slope — positive = trending up
+        x = range(len(rs))
+        slope = (rs[-1] - rs[-weeks*5]) / (weeks * 5)
+        return slope > 0
+    except: return False
+
+def compute_base_count(daily: pd.DataFrame) -> int:
+    """Estimate base count — first/second base breakouts are more powerful than late-stage.
+    Uses weekly consolidation periods separated by 20%+ advances."""
+    try:
+        if len(daily) < 100: return 1
+        weekly = daily.resample("W").agg({"Close":"last","High":"max","Low":"min"}).dropna()
+        if len(weekly) < 20: return 1
+
+        closes = weekly["Close"].values
+        bases  = 0
+        in_base = False
+        base_start_price = closes[0]
+        advance_threshold = 0.20  # 20% advance separates bases
+
+        for i in range(1, len(closes)):
+            move = (closes[i] - base_start_price) / base_start_price
+            if move >= advance_threshold:
+                # Stock advanced significantly — next consolidation is a new base
+                bases += 1
+                base_start_price = closes[i]
+                in_base = False
+
+        return max(1, bases)
+    except: return 1
+
+def fetch_insider_buying(ticker: str) -> bool:
+    """Check if there's been insider buying in the last 90 days via SEC EDGAR EFTS.
+    Returns True if net insider buying detected."""
+    try:
+        import requests
+        url = f"https://efts.sec.gov/LATEST/search-index?q=%22{ticker}%22&dateRange=custom&startdt={__import__('datetime').date.today() - __import__('datetime').timedelta(days=90)}&enddt={__import__('datetime').date.today()}&forms=4"
+        resp = requests.get(url, timeout=5,
+                           headers={"User-Agent": "MarketEdge scanner@marketedge.app"})
+        if resp.status_code != 200: return False
+        data = resp.json()
+        hits = data.get("hits", {}).get("hits", [])
+        # Look for Form 4 with transaction code P (purchase)
+        for hit in hits[:5]:
+            src = hit.get("_source", {})
+            if "P" in str(src.get("period_of_report", "")):
+                return True
+        return False
+    except: return False
+
+
 def weeks_tight(daily: pd.DataFrame, threshold=0.015) -> int:
     try:
         weekly = daily.resample("W").agg({"Close":"last"}).dropna()
@@ -754,17 +831,32 @@ def compute_rs_ranks(data: dict, valid: list) -> dict:
 _SPY: pd.DataFrame = pd.DataFrame()
 
 
-def compute_score_bonuses(ticker, daily, rs_pctile, score, cache):
-    """Apply up to 15 bonus points based on earnings quality, rel vol on breakout, 52w high proximity, short interest."""
+def compute_score_bonuses(ticker, daily, rs_pctile, score, cache, spy=None):
+    """Apply up to 20 bonus points based on:
+    - RS line new high (O'Neil #1 signal)
+    - RS line trending up
+    - Earnings beat quality
+    - 52-week high proximity
+    - Short interest sweet spot
+    - Relative volume on breakout
+    - Base count (early bases score higher)
+    """
     si = cache.get(ticker, {})
     bonus = 0
 
-    # 1. Earnings beat quality (+5 pts) — beat estimates by >10%
+    # 1. RS line making new highs (+6 pts) — O'Neil's single strongest signal
+    #    RS line at 52w high before/during breakout = institutional accumulation
+    if spy is not None and rs_line_new_high(daily, spy):
+        bonus += 6
+    elif spy is not None and rs_line_trending_up(daily, spy, weeks=4):
+        bonus += 2  # rising but not new high
+
+    # 2. Earnings beat quality (+5 pts) — beat estimates by >10%
     eps_beat = si.get("eps_beat_pct", 0) or 0
     if eps_beat >= 20: bonus += 5
     elif eps_beat >= 10: bonus += 3
 
-    # 2. 52-week high proximity (+4 pts) — within 3% of 52w high is strongest
+    # 3. 52-week high proximity (+4 pts) — within 3% of 52w high is strongest
     if len(daily) >= 50:
         high52 = float(daily["High"].rolling(252, min_periods=50).max().iloc[-1])
         price  = float(daily["Close"].iloc[-1])
@@ -772,12 +864,12 @@ def compute_score_bonuses(ticker, daily, rs_pctile, score, cache):
         if from_high <= 3:  bonus += 4
         elif from_high <= 8: bonus += 2
 
-    # 3. Short interest squeeze potential (+3 pts) — high short float means fuel
+    # 4. Short interest sweet spot (+3 pts)
     sf = si.get("short_float", 0) or 0
-    if 10 <= sf <= 30: bonus += 3   # sweet spot — meaningful but not trapped
-    elif sf > 30: bonus += 1        # very high short, harder to squeeze cleanly
+    if 10 <= sf <= 30: bonus += 3
+    elif sf > 30: bonus += 1
 
-    # 4. Relative volume on breakout (+3 pts) — today's volume vs 50-day avg
+    # 5. Relative volume on breakout (+3 pts)
     if len(daily) >= 50:
         vol_today = float(daily["Volume"].iloc[-1])
         vol_avg50 = float(daily["Volume"].tail(50).mean())
@@ -786,9 +878,14 @@ def compute_score_bonuses(ticker, daily, rs_pctile, score, cache):
         elif rel_vol >= 1.5: bonus += 2
         elif rel_vol >= 1.2: bonus += 1
 
-    return min(score + bonus, 100)  # cap at 100
+    # 6. Base count — penalize late-stage bases (+2 for early, -2 for late)
+    base_n = compute_base_count(daily)
+    if base_n <= 2:   bonus += 2   # first/second base — most powerful
+    elif base_n >= 4: bonus -= 2   # late stage — higher failure rate
 
-def base_result(ticker, daily, rs_pctile, score, status, tags, extra, scan, cache) -> dict:
+    return min(score + bonus, 100)
+
+def base_result(ticker, daily, rs_pctile, score, status, tags, extra, scan, cache, spy=None) -> dict:
     si = cache.get(ticker, {})
     wt = weeks_tight(daily)
     rs_l = rs_line(daily, _SPY, CFG["chart_bars"])
@@ -814,12 +911,15 @@ def base_result(ticker, daily, rs_pctile, score, status, tags, extra, scan, cach
         "rev_accel":       si.get("rev_accelerating", False),
         "eps_positive":    si.get("eps_positive", None),
         "q_data":          si.get("q_data_available", False),
-        "score":           compute_score_bonuses(ticker, daily, rs_pctile, score, cache),
+        "score":           compute_score_bonuses(ticker, daily, rs_pctile, score, cache, spy=spy),
         "status":          status,
         "tags":            tags,
         "chart":           ohlc_chart(daily, CFG["chart_bars"]),
         "weekly_chart":    weekly_ohlc_chart(daily, 104),
         "rs_line":         rs_l,
+        "rs_new_high":     rs_line_new_high(daily, spy) if spy is not None else False,
+        "rs_trending":     rs_line_trending_up(daily, spy) if spy is not None else False,
+        "base_count":      compute_base_count(daily),
         "weeks_tight":     wt,
         "wt":              wt,
         "scan":            scan,
@@ -903,7 +1003,7 @@ def _extension_pct(price, daily):
 #  No fundamental requirement — he is purely technical for swing trades
 #  Uses 10 EMA and 20 EMA (not 9/21)
 # ══════════════════════════════════════════════════════════════════════════════
-def scan_qullamaggie(ticker, daily, rs_pctile, cache) -> list[dict]:
+def scan_qullamaggie(ticker, daily, rs_pctile, cache, spy=None) -> list[dict]:
     results = []
     if not basic_ok(daily): return results
     close = daily["Close"]; price = float(close.iloc[-1])
@@ -945,7 +1045,7 @@ def scan_qullamaggie(ticker, daily, rs_pctile, cache) -> list[dict]:
                  "gap_pct":round(gap_pct,1),"vol_ratio":round(vol_ratio,2),
                  "bars_since_gap":bars_since,"gap_open":round(gap_open,2),
                  "pivot":round(gap_open,2),"from_high_pct":round(max(0,(gap_open-price)/gap_open*100),1)},
-                "Episodic Pivot", cache))
+                "Episodic Pivot", cache, spy=spy))
             break
 
     # ── 2. BULL FLAG ───────────────────────────────────────────────────────
@@ -1043,7 +1143,7 @@ def scan_qullamaggie(ticker, daily, rs_pctile, cache) -> list[dict]:
                                      "dist_ema_pct":round(abs(best_dist),1),"vol_ratio":round(vol_ratio,2),
                                      "pivot":round(float(close.rolling(20).max().iloc[-1]),2),
                                      "from_high_pct":round(abs(best_dist),1)},
-                                    "EMA Pullback", cache))
+                                    "EMA Pullback", cache, spy=spy))
     return results
 
 
@@ -1052,7 +1152,7 @@ def scan_qullamaggie(ticker, daily, rs_pctile, cache) -> list[dict]:
 #  SEPA criteria: exact uptrend template, strict contractions
 #  Requires fundamentals: EPS 25%+, Rev 20%+
 # ══════════════════════════════════════════════════════════════════════════════
-def scan_minervini(ticker, daily, rs_pctile, cache) -> dict | None:
+def scan_minervini(ticker, daily, rs_pctile, cache, spy=None) -> dict | None:
     if not basic_ok(daily): return None
     close = daily["Close"]; price = float(close.iloc[-1])
     if len(close) < 200: return None
@@ -1143,7 +1243,7 @@ def scan_minervini(ticker, daily, rs_pctile, cache) -> dict | None:
          "range_10d":round(r10,1),"range_20d":round(r20,1),"range_40d":round(r40,1),
          "contractions":contractions,"vol_ratio":round(vol_dry,2),
          "sma50":round(s50,2),"sma150":round(s150,2),"sma200":round(s200,2)},
-        "VCP", cache)
+        "VCP", cache, spy=spy)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1151,7 +1251,7 @@ def scan_minervini(ticker, daily, rs_pctile, cache) -> dict | None:
 #  C+A+N+S+L+I+M criteria applied to technical setups
 #  RS 80+, EPS 25%+, Rev 20%+, profitable, breakout volume required
 # ══════════════════════════════════════════════════════════════════════════════
-def scan_oneil(ticker, daily, rs_pctile, cache) -> list[dict]:
+def scan_oneil(ticker, daily, rs_pctile, cache, spy=None) -> list[dict]:
     results = []
     if not basic_ok(daily): return results
     close = daily["Close"]; price = float(close.iloc[-1])
@@ -1249,7 +1349,7 @@ def scan_oneil(ticker, daily, rs_pctile, cache) -> list[dict]:
                                          "base_weeks":base_weeks,"base_range_pct":round(base_range,1),
                                          "vol_ratio":round(vol_ratio,2),"breakout_vol":round(breakout_vol,2),
                                          "sma50":round(s50,2)},
-                                        "Base Breakout", cache))
+                                        "Base Breakout", cache, spy=spy))
 
     # ── 2. POCKET PIVOT ─────────────────────────────────────────────────────
     # Gil/Morales (O'Neil methodology): up-day vol > max of last 10 down-day vols
@@ -1281,7 +1381,7 @@ def scan_oneil(ticker, daily, rs_pctile, cache) -> list[dict]:
                  "vol_ratio":round(vol_ratio,2),"bars_ago":lookback,
                  "sma50":round(s50,2),"pct_above_50":round(pct_above_50,1),
                  "pivot":round(price*1.05,2),"from_high_pct":round(pct_above_50,1)},
-                "Pocket Pivot", cache))
+                "Pocket Pivot", cache, spy=spy))
             break
 
     return results
@@ -1293,7 +1393,7 @@ def scan_oneil(ticker, daily, rs_pctile, cache) -> list[dict]:
 #  30-week SMA rising, price breaks out of Stage 1 base, volume expanding
 #  Works for any stock regardless of earnings
 # ══════════════════════════════════════════════════════════════════════════════
-def scan_weinstein(ticker, daily, rs_pctile, cache) -> dict | None:
+def scan_weinstein(ticker, daily, rs_pctile, cache, spy=None) -> dict | None:
     if not basic_ok(daily): return None
     close = daily["Close"]; price = float(close.iloc[-1])
     if len(daily) < 200: return None
@@ -1368,7 +1468,7 @@ def scan_weinstein(ticker, daily, rs_pctile, cache) -> dict | None:
          "sma30w":round(sma30_now,2),"weeks_in_stage2":weeks_above,
          "vol_ratio":round(vol_ratio,2),"sma30_slope":round(sma30_slope_pct,2),
          "pivot":round(price_w*1.02,2),"from_high_pct":round((float(daily["High"].rolling(52,min_periods=10).max().iloc[-1])-price)/price*100,1)},
-        "Stage 2", cache)
+        "Stage 2", cache, spy=spy)
 
 
 
@@ -2211,7 +2311,7 @@ def run(test_mode=False):
     q_hits = []
     for t in valid:
         try:
-            q_hits.extend(scan_qullamaggie(t, data[t], rs_pct.get(t,0), cache))
+            q_hits.extend(scan_qullamaggie(t, data[t], rs_pct.get(t,0), cache, spy=_SPY))
         except: pass
     q_hits.sort(key=lambda x: x["score"], reverse=True)
     seen=set(); q_deduped=[]
@@ -2224,7 +2324,7 @@ def run(test_mode=False):
     m_hits = []
     for t in valid:
         try:
-            r = scan_minervini(t, data[t], rs_pct.get(t,0), cache)
+            r = scan_minervini(t, data[t], rs_pct.get(t,0), cache, spy=_SPY)
             if r: m_hits.append(r)
         except: pass
     m_hits.sort(key=lambda x: x["score"], reverse=True)
@@ -2235,7 +2335,7 @@ def run(test_mode=False):
     o_hits = []
     for t in valid:
         try:
-            o_hits.extend(scan_oneil(t, data[t], rs_pct.get(t,0), cache))
+            o_hits.extend(scan_oneil(t, data[t], rs_pct.get(t,0), cache, spy=_SPY))
         except: pass
     o_hits.sort(key=lambda x: x["score"], reverse=True)
     seen=set(); o_deduped=[]
@@ -2248,7 +2348,7 @@ def run(test_mode=False):
     w_hits = []
     for t in valid:
         try:
-            r = scan_weinstein(t, data[t], rs_pct.get(t,0), cache)
+            r = scan_weinstein(t, data[t], rs_pct.get(t,0), cache, spy=_SPY)
             if r: w_hits.append(r)
         except: pass
     w_hits.sort(key=lambda x: x["score"], reverse=True)
