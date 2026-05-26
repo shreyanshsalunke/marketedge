@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MarketEdge</title>
+<title>Stratify</title>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 
 <style>
@@ -511,12 +511,12 @@ body.light-mode .hover-meta{color:#52647a}
 <body>
 <div id="loading">
   <div class="spinner"></div>
-  <div class="loading-text">INITIALISING MARKETEDGE…</div>
+  <div class="loading-text">INITIALISING STRATIFY…</div>
 </div>
 
 <!-- HEADER -->
 <div id="header">
-  <div class="logo">MarketEdge <sup>BETA</sup></div>
+  <div class="logo">Stratify <sup>BETA</sup></div>
   <div class="header-mid">
     <span class="regime-badge NEUTRAL" id="regime-badge">NEUTRAL</span>
     <button id="theme-toggle" onclick="toggleTheme()">☀ Light</button>
@@ -1047,7 +1047,7 @@ function renderScreenerGrid(){
   const mcBar=document.getElementById('mc-bar');
   const stratBar=document.getElementById('strategy-tabs');
   const metaBar=document.getElementById('screener-meta');
-  if(mcBar) mcBar.style.display='flex';
+  if(mcBar) mcBar.style.display='none';
   if(stratBar) stratBar.style.display='flex';
   if(metaBar) metaBar.style.display='block';
   if(ACTIVE_MODE==='lt'){ renderLongTerm(); return; }
@@ -1055,35 +1055,26 @@ function renderScreenerGrid(){
   renderRegimeWarning();
 
   const dataKey={qullamaggie:'qullamaggie',minervini:'minervini',oneil:'oneil',weinstein:'weinstein',bearish:'bearish',choppy:'choppy'}[ACTIVE_MC]||'qullamaggie';
-  let all = DATA[dataKey]||[];
-  // Sector filter
-  if(ACTIVE_SECTOR==='LEADING'){
-    const leading=getLeadingSectors();
-    const sectorETFs={'Technology':'XLK','Communication':'XLC','Financials':'XLF','Health Care':'XLV','Healthcare':'XLV','Industrials':'XLI','Consumer':'XLY','Energy':'XLE','Materials':'XLB','Real Estate':'XLRE','Utilities':'XLU','Biotech':'XBI','Commodities':'GLD','Staples':'XLP','Telecom':'XLC'};
-  } else if(ACTIVE_SECTOR!=='ALL'){
-  }
-  const bySector=ACTIVE_SCREENER_SECTOR==='ALL'?all:all.filter(s=>s.sector===ACTIVE_SCREENER_SECTOR);
-  let filtered=ACTIVE_STRAT==='ALL'?bySector:bySector.filter(s=>s.strategy===ACTIVE_STRAT);
-  // Sort
-  filtered = [...filtered].sort((a,b)=>{
-    if(SORT_BY==='score') return b.score-a.score;
-    if(SORT_BY==='pivot') return (a.from_high_pct||99)-(b.from_high_pct||99);
-    if(SORT_BY==='eps')   return (b.eps||0)-(a.eps||0);
-    return b.rs_pctile-a.rs_pctile; // default: RS
+
+  // Unified swing screener — merge all methodologies, deduplicate by ticker
+  const methodKeys = ['qullamaggie','minervini','oneil','weinstein'];
+  const tickerMap = {};
+  methodKeys.forEach(key => {
+    (DATA[key]||[]).forEach(s => {
+      if(!tickerMap[s.ticker]){
+        tickerMap[s.ticker] = {...s, methods:[s.strategy]};
+      } else {
+        if(!tickerMap[s.ticker].methods.includes(s.strategy))
+          tickerMap[s.ticker].methods.push(s.strategy);
+        if(s.score > tickerMap[s.ticker].score)
+          tickerMap[s.ticker] = {...s, methods:tickerMap[s.ticker].methods};
+      }
+    });
   });
-  const label={qullamaggie:'Qullamaggie',minervini:'Minervini',oneil:"O'Neil/IBD",weinstein:'Weinstein',bearish:'Bearish',choppy:'Choppy'}[ACTIVE_MC]||ACTIVE_MC;
-  const stratLabel=ACTIVE_STRAT==='ALL'?'All Setups':STRAT_LABELS[ACTIVE_STRAT]||ACTIVE_STRAT;
-  const ready = filtered.filter(s=>s.status==='READY').length;
-  const good  = filtered.filter(s=>s.status==='GOOD').length;
-  const dev   = filtered.filter(s=>s.status==='DEVELOPING').length;
-  const sortBtns = `<span style="margin-left:8px;display:inline-flex;gap:3px">
-    <button onclick="setSortBy('rs')" style="font-family:var(--font-mono);font-size:8px;padding:1px 6px;border-radius:3px;border:1px solid var(--border);background:${SORT_BY==='rs'?'var(--bg4)':'var(--bg3)'};color:${SORT_BY==='rs'?'var(--accent)':'var(--text3)'};cursor:pointer">RS</button>
-    <button onclick="setSortBy('score')" style="font-family:var(--font-mono);font-size:8px;padding:1px 6px;border-radius:3px;border:1px solid var(--border);background:${SORT_BY==='score'?'var(--bg4)':'var(--bg3)'};color:${SORT_BY==='score'?'var(--accent)':'var(--text3)'};cursor:pointer">Score</button>
-    <button onclick="setSortBy('pivot')" style="font-family:var(--font-mono);font-size:8px;padding:1px 6px;border-radius:3px;border:1px solid var(--border);background:${SORT_BY==='pivot'?'var(--bg4)':'var(--bg3)'};color:${SORT_BY==='pivot'?'var(--accent)':'var(--text3)'};cursor:pointer">Pivot</button>
-    <button onclick="setSortBy('eps')" style="font-family:var(--font-mono);font-size:8px;padding:1px 6px;border-radius:3px;border:1px solid var(--border);background:${SORT_BY==='eps'?'var(--bg4)':'var(--bg3)'};color:${SORT_BY==='eps'?'var(--accent)':'var(--text3)'};cursor:pointer">EPS</button>
-  </span>`;
+  const unified = Object.values(tickerMap).sort((a,b)=>b.score-a.score);
+  const filtered = unified;
   const statusSummary = `<span style="margin-left:8px;font-size:9px;color:var(--text3)"><span style="color:#3fb950">${ready} ready</span> · <span style="color:#58a6ff">${good} good</span> · <span style="color:var(--text3)">${dev} dev</span></span>`;
-  document.getElementById('screener-meta').innerHTML = `${filtered.length} setups · ${label} · ${stratLabel}` + statusSummary + sortBtns;
+  document.getElementById('screener-meta').innerHTML = `${unified.length} setups` + statusSummary;
   const grid=document.getElementById('screener-grid');
   grid.innerHTML=filtered.map((s,idx)=>{
     const sfWarn=s.sf>15;
@@ -1109,10 +1100,9 @@ function renderScreenerGrid(){
           </div>
         </div>
         <div class="scard-row2">
-          <span class="strategy-badge ${s.strategy}">${STRAT_LABELS[s.strategy]||s.strategy}</span>
+          ${(s.methods||[s.strategy]).map(m=>`<span class="strategy-badge ${m}">${STRAT_LABELS[m]||m}</span>`).join('')}
           <span class="status-badge ${s.status}">${s.status}</span>
           ${earningsFlag(s.ticker)}
-
           ${s.base_count>=1&&s.base_count<=2?`<span style="font-family:var(--font-mono);font-size:7px;padding:2px 5px;border-radius:2px;background:rgba(88,166,255,.1);color:#58a6ff;border:1px solid rgba(88,166,255,.25)">${s.base_count===1?'1st':'2nd'} base</span>`:''}
           <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-left:auto">RS ${s.rs}th</span>
         </div>
@@ -1456,12 +1446,12 @@ init();
 // ── THEME TOGGLE ─────────────────────────────────────────────────────────────
 function toggleTheme(){
   const isLight = document.body.classList.toggle('light-mode');
-  localStorage.setItem('me_theme', isLight ? 'light' : 'dark');
+  localStorage.setItem('st_theme', isLight ? 'light' : 'dark');
   const btn = document.getElementById('theme-toggle');
   if(btn) btn.textContent = isLight ? '🌙 Dark' : '☀ Light';
 }
 (function(){
-  if(localStorage.getItem('me_theme')==='light'){
+  if(localStorage.getItem('st_theme')==='light'){
     document.body.classList.add('light-mode');
     const btn = document.getElementById('theme-toggle');
     if(btn) btn.textContent = '🌙 Dark';
@@ -1550,7 +1540,7 @@ document.getElementById('export-btn').addEventListener('click',()=>{
   const csv=rows.map(r=>r.join(',')).join('\n');
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download=`marketedge_${mc}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download=`stratify_${mc}_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 });
 

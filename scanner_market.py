@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-MarketEdge — Nightly Scanner
-Feeds market_data.json consumed by marketedge.html
+Stratify — Nightly Scanner
+Feeds market_data.json consumed by stratify.html
 
 Scans:
   Bullish  : VCP, High Tight Flag, EP/EGU, Base Breakout, Stage 2, Pocket Pivot,
@@ -38,7 +38,7 @@ CFG = {
     "chart_bars":      180,         # OHLCV bars sent to frontend (180 daily = ~6M)
     "output_file":     "market_data.json",
     "batch_size":      400,
-    "sector_cache":    str(Path.home() / ".marketedge_sectors.json"),
+    "sector_cache":    str(Path.home() / ".stratify_sectors.json"),
 }
 
 # Index & sector tickers
@@ -82,7 +82,7 @@ TSX_SEEDS = [
 # ─── CONFIG LOADER ─────────────────────────────────────────────────────────────
 def load_config() -> dict:
     cfg = {}
-    f = Path.home() / ".marketedge_config"
+    f = Path.home() / ".stratify_config"
     # Also accept old SwingEdge config for API key
     for fname in [f, Path.home() / ".qscanner_config"]:
         if fname.exists():
@@ -93,7 +93,7 @@ def load_config() -> dict:
     key = os.environ.get("POLYGON_API_KEY", cfg.get("POLYGON_API_KEY",""))
     if not key:
         print("  ✗  No POLYGON_API_KEY found.")
-        print("     Add to ~/.marketedge_config: POLYGON_API_KEY=your_key")
+        print("     Add to ~/.stratify_config: POLYGON_API_KEY=your_key")
         sys.exit(1)
     # FMP key is optional but enables quarterly EPS/Rev data
     fmp_key = os.environ.get("FMP_API_KEY", cfg.get("FMP_API_KEY",""))
@@ -102,7 +102,7 @@ def load_config() -> dict:
     else:
         print("  ⚠  No FMP_API_KEY — using TTM fundamentals only")
         print("     Get a free key at financialmodelingprep.com and add:")
-        print("     FMP_API_KEY=your_key to ~/.marketedge_config")
+        print("     FMP_API_KEY=your_key to ~/.stratify_config")
     cfg["FMP_API_KEY"] = fmp_key
     return cfg
 
@@ -242,7 +242,7 @@ def fetch_insider_buying(ticker: str) -> bool:
         import requests
         url = f"https://efts.sec.gov/LATEST/search-index?q=%22{ticker}%22&dateRange=custom&startdt={__import__('datetime').date.today() - __import__('datetime').timedelta(days=90)}&enddt={__import__('datetime').date.today()}&forms=4"
         resp = requests.get(url, timeout=5,
-                           headers={"User-Agent": "MarketEdge scanner@marketedge.app"})
+                           headers={"User-Agent": "Stratify scanner@stratify.app"})
         if resp.status_code != 200: return False
         data = resp.json()
         hits = data.get("hits", {}).get("hits", [])
@@ -2212,7 +2212,7 @@ def upload_to_github(data: dict, cfg: dict):
     repo  = cfg.get("GITHUB_REPO","")
     if not token or not repo:
         print("  !  No GITHUB_TOKEN/GITHUB_REPO — skipping upload")
-        print("     Add to ~/.marketedge_config")
+        print("     Add to ~/.stratify_config")
         return
     try:
         from github import Github
@@ -2222,11 +2222,11 @@ def upload_to_github(data: dict, cfg: dict):
         try:
             existing = gh_repo.get_contents("market_data.json", ref="main")
             gh_repo.update_file("market_data.json",
-                f"MarketEdge scan — {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                f"Stratify scan — {datetime.now().strftime('%Y-%m-%d %H:%M')}",
                 content_str, existing.sha, branch="main")
         except:
             gh_repo.create_file("market_data.json",
-                f"MarketEdge scan — {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                f"Stratify scan — {datetime.now().strftime('%Y-%m-%d %H:%M')}",
                 content_str, branch="main")
         site = repo.split("/")[1] if "/" in repo else repo
         print(f"  ✓  Live → https://{site}.vercel.app\n")
@@ -2238,7 +2238,7 @@ def upload_to_github(data: dict, cfg: dict):
 # ════════════════════════════════════════════════════════════════════════==========
 def run(test_mode=False):
     print("\n"+"═"*60)
-    print("  MarketEdge — Nightly Scanner")
+    print("  Stratify — Nightly Scanner")
     print("  US + Canadian Markets | All Strategies")
     print("═"*60)
     cfg = load_config()
@@ -2516,13 +2516,13 @@ def setup_cron():
     """Install launchd plist on macOS — runs every weekday at 9:30 PM UTC (4:30 PM ET)."""
     script_path = Path(__file__).resolve()
     python_path = sys.executable
-    log_path    = Path.home() / "Library/Logs/marketedge_scan.log"
-    plist_path  = Path.home() / "Library/LaunchAgents/com.marketedge.scanner.plist"
+    log_path    = Path.home() / "Library/Logs/stratify_scan.log"
+    plist_path  = Path.home() / "Library/LaunchAgents/com.stratify.scanner.plist"
     plist = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>Label</key><string>com.marketedge.scanner</string>
+  <key>Label</key><string>com.stratify.scanner</string>
   <key>ProgramArguments</key><array>
     <string>{python_path}</string>
     <string>{script_path}</string>
@@ -2544,7 +2544,7 @@ def setup_cron():
     print(f"     Runs every weekday at 9:30 PM UTC (4:30 PM ET after market close)")
     print(f"     Logs → {log_path}")
     print(f"\n  To activate:  launchctl load {plist_path}")
-    print(f"  To check:     launchctl list | grep marketedge")
+    print(f"  To check:     launchctl list | grep stratify")
     print(f"  To disable:   launchctl unload {plist_path}")
 
 if __name__ == "__main__":
