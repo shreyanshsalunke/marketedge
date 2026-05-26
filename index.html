@@ -487,8 +487,7 @@ body.light-mode .hover-meta{color:#52647a}
 .theme-card.active{border-color:var(--accent);grid-column:1/-1;transition:none}
 .theme-card.active .theme-stocks{display:grid;grid-template-columns:repeat(4,1fr);gap:4px 20px;padding:12px 16px}
 .theme-header{padding:14px 16px;border-bottom:1px solid var(--border)}
-.theme-icon{font-size:20px;margin-bottom:6px}
-.theme-name{font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.theme-name{font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--text);margin-bottom:5px}
 .theme-score{font-family:var(--font-mono);font-size:22px;font-weight:700}
 .theme-meta{font-family:var(--font-mono);font-size:10px;color:var(--text3);margin-top:4px}
 .theme-top3{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
@@ -1623,7 +1622,6 @@ function renderThematic(){
 
     return `<div class="theme-card" id="theme-${ti}" onclick="toggleThemeCard(${ti})">
       <div class="theme-header">
-        <div class="theme-icon">${theme.icon}</div>
         <div class="theme-name">${theme.name}</div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
           <span class="theme-score" style="color:${scoreCol}">${score.toFixed(1)}</span>
