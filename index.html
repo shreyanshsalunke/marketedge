@@ -1645,9 +1645,15 @@ function renderThematic(){
         <div class="theme-name">${theme.name}</div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
           <span class="theme-score" style="color:${scoreCol}">${score.toFixed(1)}</span>
-          <span class="theme-meta">▲${theme.leading} leading · ~${theme.emerging} emerging</span>
+          <span class="theme-meta">${theme.leading} leading · ${theme.emerging} emerging</span>
         </div>
-        <div class="theme-score-bar"><div class="theme-score-fill" style="width:${score}%;background:${scoreCol}"></div></div>
+        <div class="theme-score-bar"><div class="theme-score-fill" style="width:${Math.min(100,score)}%;background:${scoreCol}"></div></div>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+          <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">RS avg <b style="color:var(--text2)">${theme.avg_rs||'—'}</b></span>
+          <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">Breadth <b style="color:${(theme.breadth_pct||0)>=60?'#3fb950':(theme.breadth_pct||0)>=40?'#d29922':'#f85149'}">${theme.breadth_pct||0}%</b></span>
+          <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">4W mom <b style="color:${(theme.avg_mom||0)>0?'#3fb950':'#f85149'}">${(theme.avg_mom||0)>0?'+':''}${theme.avg_mom||0}%</b></span>
+          <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">ADR <b style="color:var(--text2)">${theme.avg_adr||0}%</b></span>
+        </div>
         <div class="theme-top3">${top3}</div>
       </div>
       <div class="theme-stocks">${stockRows}</div>

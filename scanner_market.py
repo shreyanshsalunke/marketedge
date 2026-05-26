@@ -1837,6 +1837,7 @@ def score_theme_stock(ticker, daily, rs_pctile, mkt_cap):
     if close > sma200: score += 10
 
     # Price momentum — 4-week return (15 pts)
+    ret4w = 0
     if len(daily) >= 20:
         ret4w = (close / daily["Close"].iloc[-20] - 1) * 100
         if ret4w > 20: score += 15
@@ -1853,6 +1854,8 @@ def score_theme_stock(ticker, daily, rs_pctile, mkt_cap):
     elif adr >= 2.5: score += 6
     elif adr >= 1.5: score += 3
 
+    above_50 = close > sma50
+
     tier = "LEADING" if score >= 70 else "EMERGING" if score >= 45 else "DEVELOPING"
     return {
         "ticker":    ticker,
@@ -1860,13 +1863,15 @@ def score_theme_stock(ticker, daily, rs_pctile, mkt_cap):
         "tier":      tier,
         "rs":        rs_pctile,
         "price":     round(float(close), 2),
-        "adr":       round(adr, 1),
+        "adr":       round(float(adr), 1),
+        "mom4w":     round(float(ret4w), 1),
+        "above_50":  bool(above_50),
         "mkt_cap":   round(mkt_cap, 0),
         "chart":     ohlc_chart(daily, 180),
     }
 
 def scan_themes(data, rs_pct, cache):
-    """Score all themes and return ranked results."""
+    """Score all themes using composite scoring — RS breadth + momentum + volatility."""
     print("\n  ── Thematic scan ──────────────────────────────────────")
     theme_results = {}
 
@@ -1887,23 +1892,54 @@ def scan_themes(data, rs_pct, cache):
         stocks.sort(key=lambda x: x["score"], reverse=True)
         leading  = [s for s in stocks if s["tier"] == "LEADING"]
         emerging = [s for s in stocks if s["tier"] == "EMERGING"]
+        n = len(stocks)
 
-        # Theme score = weighted avg of top 5 stocks RS
-        top5_rs = [s["rs"] for s in stocks[:5]]
-        theme_score = round(sum(top5_rs) / len(top5_rs), 1) if top5_rs else 0
+        # ── Composite theme score ─────────────────────────────────────────────
+        # 1. RS component (40%) — avg RS of all stocks, not just top 5
+        #    Penalizes themes where only 1-2 names are pulling the average up
+        all_rs   = [s["rs"] for s in stocks]
+        rs_score = (sum(all_rs) / len(all_rs)) * 0.40
+
+        # 2. Breadth component (25%) — % of stocks above their 50 SMA
+        #    A theme where 80% of names are trending is more reliable than 20%
+        above_50 = sum(1 for s in stocks if s.get("above_50", False))
+        breadth_score = (above_50 / n * 100) * 0.25
+
+        # 3. Momentum component (20%) — avg 4-week price return of all stocks
+        #    Is the theme accelerating right now?
+        mom_vals = [s.get("mom4w", 0) for s in stocks if s.get("mom4w") is not None]
+        mom_avg  = sum(mom_vals) / len(mom_vals) if mom_vals else 0
+        mom_normalized = min(100, max(0, 50 + mom_avg * 2))  # center at 50, scale
+        mom_score = mom_normalized * 0.20
+
+        # 4. Volatility/tradability component (15%) — avg ADR of stocks
+        #    Themes with higher ADR have more swing trading potential
+        adr_vals = [s.get("adr", 0) for s in stocks]
+        adr_avg  = sum(adr_vals) / len(adr_vals) if adr_vals else 0
+        adr_normalized = min(100, adr_avg * 20)  # 5% ADR = 100 score
+        adr_score = adr_normalized * 0.15
+
+        theme_score = round(rs_score + breadth_score + mom_score + adr_score, 1)
+
+        # Breadth pct for display
+        breadth_pct = round(above_50 / n * 100) if n > 0 else 0
 
         theme_results[theme_name] = {
-            "name":      theme_name,
-            "icon":      theme_def["icon"],
-            "score":     theme_score,
-            "stocks":    stocks[:25],
-            "leading":   len(leading),
-            "emerging":  len(emerging),
-            "top3":      [s["ticker"] for s in stocks[:3]],
+            "name":        theme_name,
+            "icon":        theme_def["icon"],
+            "score":       theme_score,
+            "stocks":      stocks[:25],
+            "leading":     len(leading),
+            "emerging":    len(emerging),
+            "top3":        [s["ticker"] for s in stocks[:3]],
+            "breadth_pct": breadth_pct,
+            "avg_rs":      round(sum(all_rs)/len(all_rs), 1) if all_rs else 0,
+            "avg_mom":     round(mom_avg, 1) if mom_vals else 0,
+            "avg_adr":     round(adr_avg, 1) if adr_vals else 0,
         }
-        print(f"     {theme_name:30s} score={theme_score:5.1f} leading={len(leading)} emerging={len(emerging)}")
+        print(f"     {theme_name:35s} score={theme_score:5.1f} breadth={breadth_pct:3d}% leading={len(leading)} emerging={len(emerging)}")
 
-    # Sort themes by score
+    # Sort themes by composite score
     sorted_themes = sorted(theme_results.values(), key=lambda x: x["score"], reverse=True)
     return sorted_themes
 
