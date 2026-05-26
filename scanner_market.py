@@ -1646,68 +1646,169 @@ def scan_vol_squeeze(ticker, daily, rs_pctile, cache) -> dict | None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 THEMES = {
+    # ── AI & TECH ──────────────────────────────────────────────────────────────
     "AI & Machine Learning": {
         "icon": "🤖",
-        "tickers": ["NVDA","AMD","PLTR","AI","SOUN","BBAI","GFAI","IREN","CORZ","APLD",
-                    "SMCI","AVGO","MRVL","ARM","TSM","ALAB","CRUS","LRCX","AMAT","KLAC",
-                    "IONQ","QUBT","RGTI","QBTS","ARQQ"]
-    },
-    "Cybersecurity": {
-        "icon": "🔒",
-        "tickers": ["CRWD","PANW","S","ZS","FTNT","CYBR","QLYS","TENB","VRNS","DDOG",
-                    "NET","OKTA","RPD","SAIL","MNDT","OSPN","CWAN","SWI","TPCS","LDOS"]
+        "tickers": ["NVDA","AMD","PLTR","AI","SOUN","BBAI","IREN","CORZ","APLD","SMCI",
+                    "AVGO","MRVL","ARM","ALAB","IONQ","QUBT","RGTI","QBTS","ARQQ","SAMSARA",
+                    "IOT","GTLB","SNOW","DDOG","NET","MDB","CFLT","BRZE","NCNO","FOUR"]
     },
     "Semiconductors": {
         "icon": "💾",
         "tickers": ["NVDA","AMD","AVGO","MRVL","QCOM","TXN","MPWR","WOLF","ON","SWKS",
                     "MTSI","ALGM","AEHR","ACLS","ONTO","FORM","AMBA","COHU","POWI","DIOD",
-                    "SLAB","AOSL","CEVA","KLIC","VECO"]
+                    "SLAB","AOSL","CEVA","KLIC","VECO","LRCX","AMAT","KLAC","ASML","TSM"]
+    },
+    "Cybersecurity": {
+        "icon": "🔒",
+        "tickers": ["CRWD","PANW","S","ZS","FTNT","CYBR","QLYS","TENB","VRNS","DDOG",
+                    "NET","OKTA","RPD","SAIL","CWAN","SWI","TPCS","LDOS","OSPN","MNDT"]
     },
     "Cloud Computing": {
         "icon": "☁️",
         "tickers": ["DDOG","NET","SNOW","MDB","ESTC","GTLB","ZI","BRZE","NCNO","DOCN",
-                    "FSLY","BAND","WK","CLOU","CFLT","SAMSARA","IOT","TENB","HUBS","FOUR"]
+                    "CFLT","HUBS","FOUR","WK","BAND","TENB","FSLY","IOT","SMAR","PAYC"]
     },
+    "Quantum Computing": {
+        "icon": "⚛️",
+        "tickers": ["IONQ","QUBT","RGTI","QBTS","ARQQ","IBM","MSFT","GOOGL","HON","BFLY",
+                    "DEFN","QMCO","QTUM","SPAC","QUANTA"]
+    },
+    "Robotics & Automation": {
+        "icon": "🦾",
+        "tickers": ["ISRG","AXON","NXPI","OUST","AEVA","MVIS","INVZ","LAZR","PRCT",
+                    "STXS","UFPT","BRKS","NOVT","TRMB","MKFG","ABB","ROK","EMR","FANUY","IRBT"]
+    },
+    "AR/VR & Metaverse": {
+        "icon": "🥽",
+        "tickers": ["META","SNAP","AAPL","MSFT","GOOGL","UNITY","IMMR","VUZI","MAXR",
+                    "MVIS","AMBA","KOPIN","NTDOY","SONY","RBLX"]
+    },
+    "Blockchain & Crypto": {
+        "icon": "₿",
+        "tickers": ["COIN","MARA","RIOT","CLSK","BTBT","HUT","CIFR","IREN","CORZ","APLD",
+                    "MSTR","SQ","PYPL","HOOD","BITF","WGMI","BITO","SATO","DMGI","BTCS"]
+    },
+
+    # ── BIOTECH & HEALTH ───────────────────────────────────────────────────────
     "Biotech & Genomics": {
         "icon": "🧬",
         "tickers": ["RXRX","BEAM","CRSP","NTLA","EDIT","BLUE","FATE","ALLO","KYMR","VRTX",
                     "REGN","ALNY","MRNA","BNTX","ARCT","RCUS","PMVP","IMVT","NUVL","ROIV",
-                    "RVMD","ACAD","SAGE","TGTX","PRGO"]
+                    "RVMD","ACAD","SAGE","TGTX","PRGO","EXAS","PACB","ILMN","ONT","OMIC"]
     },
     "GLP-1 & Obesity": {
         "icon": "💊",
-        "tickers": ["NVO","LLY","VKTX","ZFOX","RDVT","NTRA","GRAL","STVN","HIMS","DOCS",
-                    "AMWL","ONEM","PHVS","CGEM","ELEV","PEPG","VTYX","ALTM","LYEL","CRNX"]
+        "tickers": ["NVO","LLY","VKTX","NTRA","GRAL","STVN","HIMS","DOCS","AMWL","PHVS",
+                    "CGEM","ELEV","PEPG","VTYX","ALTM","LYEL","CRNX","RDVT","OLGN","CHRS"]
     },
-    "Defense & Space": {
-        "icon": "🚀",
-        "tickers": ["RKLB","ASTS","LUNR","RDW","KTOS","PLTR","BWXT","HII","LHX","TDG",
-                    "AXON","CACI","SAIC","MANT","VSAT","SPIR","IRDM","GILT","SPCE","PL"]
+    "Drug Delivery & MedTech": {
+        "icon": "🏥",
+        "tickers": ["ISRG","NTRA","GRAL","STVN","HIMS","AXNX","NVRO","NEOG","INSP","SWAV",
+                    "TNDM","DXCM","PODD","NVCR","SRDX","IART","MMSI","ANGO","ATRC","EMED"]
+    },
+    "Longevity & Anti-Aging": {
+        "icon": "🔬",
+        "tickers": ["UNITY","LIFE","ALDX","FOLD","VRDN","FREQ","AGIO","REGN","VRTX","ALNY",
+                    "SRPT","RARE","INSM","ACAD","EDIT","NTLA","BEAM","CRSP","BLUE","FATE"]
+    },
+    "Senior Care & Healthcare Services": {
+        "icon": "🩺",
+        "tickers": ["ELV","HUM","MOH","CNC","UNH","CVS","CI","AET","ACAD","OSCR",
+                    "CANO","DOCS","AMWL","ONEM","HIMS","TDOC","LVGO","PHVS","NVCR","PNTG"]
+    },
+
+    # ── ENERGY & RESOURCES ─────────────────────────────────────────────────────
+    "Data Centers & Power Infrastructure": {
+        "icon": "⚡",
+        "tickers": ["VST","CEG","NRG","VRT","EQIX","DLR","AMT","CCI","IREN","APLD",
+                    "CORZ","SMCI","NVDA","AMAT","ONTO","ETN","HUBB","POWL","GE","PWR"]
     },
     "Nuclear Energy": {
-        "icon": "⚛️",
+        "icon": "☢️",
         "tickers": ["CCJ","NNE","OKLO","SMR","BWXT","LEU","UEC","URG","EU","UUUU",
-                    "DNN","PDN","FCU","NXE","PALAF","URA","URNM","HPNN","FLR","AMPY"]
+                    "DNN","PDN","NXE","URA","URNM","FLR","AMPY","GEV","VST","CEG"]
     },
-    "Clean Energy": {
+    "Clean Energy & Solar": {
         "icon": "🌱",
         "tickers": ["ENPH","SEDG","RUN","NOVA","ARRY","FSLR","CSIQ","JKS","SPWR","MAXN",
-                    "BE","PLUG","FCEL","BLOOM","HYLN","NKLA","CHPT","EVGO","BLNK","WKHS"]
+                    "BE","PLUG","FCEL","BLOOM","CHPT","EVGO","BLNK","STEM","FLNC","AES"]
+    },
+    "Grid & Energy Storage": {
+        "icon": "🔋",
+        "tickers": ["QS","STEM","FLNC","BE","PLUG","FCEL","BLOOM","AES","ETN","HUBB",
+                    "POWR","POWL","GE","PWR","AMSC","AMPS","SPNS","ITRI","REGI","GPRE"]
+    },
+    "Oil & Gas Exploration": {
+        "icon": "🛢️",
+        "tickers": ["OXY","DVN","FANG","CTRA","CNX","VTLE","SM","MTDR","CPE","PDCE",
+                    "CRC","ESTE","BATL","TALO","CRGY","MGY","CIVI","XOM","CVX","PXD"]
     },
     "Copper & Critical Minerals": {
         "icon": "⛏️",
-        "tickers": ["FCX","SCCO","TECK","HBM","CS","KGHPF","CPER","COPX","IVPAF","MTAL",
-                    "MP","LITE","NOVS","SGML","LAC","PLL","ALB","SQM","LTHM","ALTM"]
+        "tickers": ["FCX","SCCO","TECK","HBM","CS","CPER","COPX","MTAL","MP","SGML",
+                    "LAC","PLL","ALB","SQM","LTHM","ALTM","NOVS","LITE","AVNT","AMR"]
+    },
+    "Gold & Precious Metals": {
+        "icon": "🥇",
+        "tickers": ["NEM","AEM","GOLD","KGC","PAAS","AG","WPM","FNV","OR","BTG",
+                    "EGO","HL","CDE","SILV","MAG","SSRM","IAG","NGD","GORO","MUX"]
+    },
+    "Agriculture & Food Security": {
+        "icon": "🌾",
+        "tickers": ["MOS","NTR","CF","ADM","CTVA","FMC","DE","AGCO","CNHI","BG",
+                    "INGR","TSN","CAG","SJM","HRL","CALM","VITL","ANDE","CENTA","GO"]
+    },
+    "Water Infrastructure": {
+        "icon": "💧",
+        "tickers": ["AWK","XYL","ARIS","MSEX","YORW","AWR","SJW","ARTNA","CWCO","PRMW",
+                    "WTRG","GWW","RBC","ITRI","REXNORD","FELE","PUMP","NWPX","ERII","ZEUS"]
+    },
+
+    # ── DEFENSE & GEOPOLITICAL ─────────────────────────────────────────────────
+    "Defense & Space": {
+        "icon": "🚀",
+        "tickers": ["RKLB","ASTS","LUNR","RDW","KTOS","PLTR","BWXT","HII","LHX","TDG",
+                    "AXON","CACI","SAIC","MANT","VSAT","SPIR","IRDM","PL","GD","RTX"]
+    },
+    "Space Economy": {
+        "icon": "🛸",
+        "tickers": ["RKLB","ASTS","LUNR","PL","SPIR","KTOS","RDW","MNTS","GSAT","VSAT",
+                    "IRDM","MAXR","BKSY","OSAT","ASTR","ACIC","SPCE","AONE","GNSS","SATL"]
+    },
+    "Reshoring & Manufacturing": {
+        "icon": "🏭",
+        "tickers": ["AMAT","LRCX","ONTO","FORM","EMR","ROK","ETN","GE","HON","ITW",
+                    "AME","ROP","TDY","HUBB","POWL","GNRC","REXNORD","FELE","AOS","WMS"]
+    },
+    "India & Emerging Markets": {
+        "icon": "🇮🇳",
+        "tickers": ["WIT","INFY","HDB","IBN","SIFY","INDA","PIN","INCO","MAXIMUS","MFIN",
+                    "TTM","VEDL","RDY","BIDU","SE","GRAB","MELI","NU","PDD","CSAN"]
+    },
+
+    # ── CONSUMER & LIFESTYLE ───────────────────────────────────────────────────
+    "Travel & Experiences": {
+        "icon": "✈️",
+        "tickers": ["ABNB","BKNG","RCL","CCL","DAL","UAL","AAL","LUV","EXPE","TRIP",
+                    "HLT","MAR","H","IHG","VAC","PLYA","SOND","VCNX","TNL","MTN"]
+    },
+    "Luxury & Premium Consumer": {
+        "icon": "💎",
+        "tickers": ["CPRI","TPR","RL","PVH","HBI","FOSL","MOV","LULU","VFC","PVH",
+                    "ONON","DECK","SKX","CROX","BIRD","GOOS","OW","LVMUY","PPRUY","CFRHF"]
     },
     "Fintech & Digital Payments": {
         "icon": "💳",
-        "tickers": ["AFRM","UPST","SQ","SOFI","NU","DAVE","OPEN","HOOD","COIN","MARA",
-                    "RIOT","HUT","CIFR","BTBT","SMAR","FLYW","STEP","RELY","PAYC","ADYEY"]
+        "tickers": ["AFRM","UPST","SQ","SOFI","NU","DAVE","HOOD","COIN","MARA","RIOT",
+                    "HUT","CIFR","BTBT","FLYW","STEP","RELY","PAYC","ADYEY","PSFE","COVA"]
     },
-    "Robotics & Automation": {
-        "icon": "🦾",
-        "tickers": ["ISRG","IRBT","AXON","TNDM","NXPI","OUST","LIDR","AEVA","MVIS","INVZ",
-                    "VLDR","LAZR","PRCT","SIBN","STXS","UFPT","BRKS","NOVT","TRMB","MKFG"]
+
+    # ── SHIPPING & MACRO ───────────────────────────────────────────────────────
+    "Shipping & Freight": {
+        "icon": "🚢",
+        "tickers": ["ZIM","DAC","MATX","SBLK","GOGL","SALT","EGLE","GNK","NMM","CTRM",
+                    "TOPS","FREE","EDRY","DRCT","GRIN","GLBS","PANL","SHIP","BWTS","ESEA"]
     },
 }
 
