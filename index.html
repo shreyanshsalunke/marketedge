@@ -309,17 +309,32 @@ a.pill:hover{border-color:var(--accent);color:var(--accent)}
 #theme-toggle:hover{border-color:var(--border2);color:var(--text)}
 body.light-mode #theme-toggle{background:#e2e8f0;border-color:#cbd5e1;color:#1e293b}
 body.light-mode{
-  --bg:#f0f2f5;--bg2:#ffffff;--bg3:#f6f8fb;--bg4:#edf0f5;
-  --border:#e2e7ef;--border2:#c8d3e0;
-  --text:#0d1b2e;--text2:#2d3f55;--text3:#6b7a8d;
-  --accent:#0f5fa8;--accent2:#1976d2;
-  --bull:#047857;--bull2:#065f46;--bull-bg:rgba(5,120,85,.08);
-  --bear:#b91c1c;--bear2:#991b1b;--bear-bg:rgba(185,28,28,.08);
-  --neut:#92400e;--neut-bg:rgba(146,64,14,.08);
-  --purple:#5b21b6;--purple-bg:rgba(91,33,182,.08);
-  --cyan:#0e7490;--teal:#0f766e;
+  --bg:#f8fafc;--bg2:#ffffff;--bg3:#f1f5f9;--bg4:#e8edf5;
+  --border:#dde3ed;--border2:#b8c4d8;
+  --text:#0a1628;--text2:#1e3a5f;--text3:#52647a;
+  --accent:#1565c0;--accent2:#1976d2;
+  --bull:#15803d;--bull2:#166534;--bull-bg:rgba(21,128,61,.08);
+  --bear:#dc2626;--bear2:#b91c1c;--bear-bg:rgba(220,38,38,.08);
+  --neut:#b45309;--neut-bg:rgba(180,83,9,.08);
+  --purple:#6d28d9;--purple-bg:rgba(109,40,217,.08);
+  --cyan:#0284c7;--teal:#0f766e;
+  --shadow-md:0 2px 12px rgba(0,0,0,.08);
 }
-body.light-mode #header{background:rgba(255,255,255,.97)}
+body.light-mode #header{background:rgba(255,255,255,.98);border-bottom:1px solid #dde3ed;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+body.light-mode .pane{background:#f8fafc}
+body.light-mode .scard{background:#fff;border-color:#dde3ed;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+body.light-mode .scard:hover{border-color:#b8c4d8;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+body.light-mode .idx-card{background:#fff;border-color:#dde3ed;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+body.light-mode .breadth-card{background:#fff;border-color:#dde3ed;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+body.light-mode #tabs{background:#fff;border-bottom:1px solid #dde3ed}
+body.light-mode .tab-btn{color:#52647a}
+body.light-mode .tab-btn.active{color:#1565c0}
+body.light-mode .mc-btn{background:#f1f5f9;border-color:#dde3ed;color:#52647a}
+body.light-mode .mc-btn.active{background:#e8f0fe;color:#1565c0;border-color:#1565c0}
+body.light-mode .strategy-badge{filter:none}
+body.light-mode .section-title{color:#52647a}
+body.light-mode .hover-label{color:#52647a}
+body.light-mode .hover-meta{color:#52647a}
 /* ── SECTOR FILTER IN SCREENER ── */
 #screener-sector-bar{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
 .sec-pill{font-family:var(--font-mono);font-size:9px;padding:3px 10px;border-radius:3px;cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--text3);transition:all .12s;white-space:nowrap}
