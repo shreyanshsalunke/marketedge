@@ -2186,6 +2186,23 @@ def run(test_mode=False):
     earnings = fetch_earnings_week(hit_tickers[:100])
     print(f"     {len(earnings)} earnings this week")
 
+    # ── Thematic scan ────────────────────────────────────────────────────────
+    all_theme_tickers = list(set(t for td in THEMES.values() for t in td["tickers"]))
+    missing_theme = [t for t in all_theme_tickers if t not in data]
+    if missing_theme:
+        print(f"  Fetching {len(missing_theme)} theme tickers…")
+        import yfinance as yf2
+        raw2 = yf2.download(missing_theme, period="2y", interval="1d",
+                            group_by="ticker", auto_adjust=True, progress=False)
+        for t in missing_theme:
+            try:
+                df2 = raw2[t].copy() if len(missing_theme) > 1 and t in raw2.columns.get_level_values(0) else (raw2.copy() if len(missing_theme)==1 else None)
+                if df2 is not None and len(df2) > 50:
+                    df2.dropna(how="all", inplace=True)
+                    data[t] = df2
+            except: pass
+    theme_results = scan_themes(data, rs_pct, cache)
+
     output = {
         "scanned_at":    datetime.now(timezone.utc).isoformat(),
         "market_regime": regime,
