@@ -523,7 +523,6 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
   <div class="tab-btn" data-pane="sectors"><span class="dot"></span>Sectors</div>
   <div class="tab-btn" data-pane="screener"><span class="dot"></span>Screener</div>
   <div class="tab-btn" data-pane="watchlist"><span class="dot"></span>Watchlist <span id="watch-count" style="font-size:8px;margin-left:3px;opacity:.6"></span></div>
-  <div class="tab-btn" data-pane="thematic"><span class="dot"></span>Thematic</div>
   <div style="margin-left:auto;padding:0 8px"></div>
 </div>
 
@@ -620,10 +619,6 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
 </div>
 
 <!-- PANE 3: SCREENER -->
-
-<!-- PANE: THEMATIC -->
-<div class="pane" id="pane-thematic">
-  <div class="section-title">Thematic Investing — Leading Themes by Market Strength</div>
   <div style="font-family:var(--font-mono);font-size:11px;color:var(--text3);margin-bottom:16px">
     Themes ranked by avg RS of constituents · $300M+ market cap · Liquid stocks only
   </div>
@@ -655,10 +650,11 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
 
   <!-- Strategy sub-tabs -->
   <div id="strategy-tabs"></div>
-  <!-- Swing / Long Term toggle -->
+  <!-- Swing / Long Term / Thematic toggle -->
   <div id="mode-bar">
     <div class="mode-btn active" data-mode="swing">Swing Trading</div>
     <div class="mode-btn" data-mode="lt">Long Term</div>
+    <div class="mode-btn" data-mode="thematic">Thematic</div>
   </div>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
     <span style="font-size:11px;color:var(--text3)" id="screener-meta">—</span>
@@ -1038,7 +1034,14 @@ function switchMC(mc){
 function renderScreenerGrid(){
   renderScreenerSectorBar();
   updateRegimeBanner();
+  const mcBar=document.getElementById('mc-bar');
+  const stratBar=document.getElementById('strategy-tabs');
+  const metaBar=document.getElementById('screener-meta');
+  if(mcBar) mcBar.style.display='flex';
+  if(stratBar) stratBar.style.display='flex';
+  if(metaBar) metaBar.style.display='block';
   if(ACTIVE_MODE==='lt'){ renderLongTerm(); return; }
+  if(ACTIVE_MODE==='thematic'){ renderThematic(); return; }
   renderRegimeWarning();
 
   const dataKey={qullamaggie:'qullamaggie',minervini:'minervini',oneil:'oneil',weinstein:'weinstein',bearish:'bearish',choppy:'choppy'}[ACTIVE_MC]||'qullamaggie';
@@ -1371,7 +1374,6 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.classList.add('active');
     document.getElementById('pane-'+btn.dataset.pane).classList.add('active');
     if(btn.dataset.pane==='watchlist') renderWatchlist();
-    if(btn.dataset.pane==='thematic') renderThematic();
   });
 });
 document.getElementById('clear-watch-btn').addEventListener('click',()=>{
@@ -1403,6 +1405,7 @@ document.querySelectorAll('.mode-btn').forEach(btn=>{
     ACTIVE_MODE=btn.dataset.mode;
     ACTIVE_STRAT='ALL';
     if(ACTIVE_MODE==='lt') renderLongTerm();
+    else if(ACTIVE_MODE==='thematic') renderThematic();
     else { renderStrategyTabs(); renderScreenerGrid(); }
   });
 });
@@ -1586,7 +1589,13 @@ function setSortBy(by){
 
 // ── THEMATIC ──────────────────────────────────────────────────────────────────
 function renderThematic(){
-  const grid = document.getElementById('theme-grid');
+  const mcBar=document.getElementById('mc-bar');
+  const stratBar=document.getElementById('strategy-tabs');
+  const metaBar=document.getElementById('screener-meta');
+  if(mcBar) mcBar.style.display='none';
+  if(stratBar) stratBar.style.display='none';
+  if(metaBar) metaBar.style.display='none';
+  const grid = document.getElementById('screener-grid');
   if(!grid) return;
   const themes = DATA.themes || [];
   if(!themes.length){
