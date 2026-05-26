@@ -191,7 +191,7 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
   color:var(--text3);transition:all .15s;
 }
 .mode-btn.active{background:var(--bg4);color:var(--accent);border:1px solid var(--accent)}
-#screener-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:start}
+#screener-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;grid-auto-rows:1fr}
 @media(max-width:1000px){#screener-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){#screener-grid{grid-template-columns:1fr}}
 
@@ -402,7 +402,7 @@ body.light-mode .hover-meta{color:#52647a}
   /* Cards */
   .scard-ticker{font-size:20px}
   .scard-score{font-size:24px}
-  .scard-default{padding:14px 16px 12px}
+  .scard-default{padding:14px 16px 12px;flex:1}
   .hover-val{font-size:14px}
   .hover-label{font-size:11px}
   .hover-grid{grid-template-columns:1fr 1fr;gap:6px}
@@ -1203,6 +1203,12 @@ function renderLongTerm(){
 let WATCHLIST = JSON.parse(localStorage.getItem('me_watchlist')||'[]');
 
 function saveWatchlist(){ localStorage.setItem('me_watchlist',JSON.stringify(WATCHLIST)); updateWatchCount(); }
+
+let WL_NOTES = JSON.parse(localStorage.getItem('st_notes')||'{}');
+function saveNote(ticker, note){
+  WL_NOTES[ticker] = note;
+  localStorage.setItem('st_notes', JSON.stringify(WL_NOTES));
+}
 function updateWatchCount(){ const el=document.getElementById('watch-count'); if(el) el.textContent=WATCHLIST.length?`(${WATCHLIST.length})`:''; }
 function toggleWatchlist(ticker){
   const i=WATCHLIST.findIndex(w=>w.ticker===ticker);
@@ -1226,6 +1232,7 @@ function renderWatchlist(){
   const grid=document.getElementById('watchlist-grid');
   if(!WATCHLIST.length){ grid.innerHTML=`<div class="watch-empty">No stocks saved yet.<br><span style="font-size:11px;opacity:.5">Click ☆ on any card to save it here.</span></div>`; return; }
   grid.innerHTML=WATCHLIST.map((w,idx)=>{
+    const note = WL_NOTES[w.ticker]||'';
     return`<div class="scard" data-ticker="${w.ticker}">
       <div class="scard-head">
         <div class="scard-top">
@@ -1239,10 +1246,15 @@ function renderWatchlist(){
       <div class="scard-pills" style="padding-top:6px">
         <span class="pill">Added ${new Date(w.addedAt).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
       </div>
+      <textarea
+        placeholder="Add a note..."
+        onclick="event.stopPropagation()"
+        oninput="saveNote('${w.ticker}',this.value)"
+        style="width:100%;margin-top:8px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:6px 8px;font-family:var(--font-mono);font-size:11px;color:var(--text);resize:none;height:52px;outline:none;line-height:1.4;box-sizing:border-box"
+      >${note}</textarea>
     </div>`;
   }).join('');
   updateWatchCount();
-  
 }
 
 // ── EARNINGS PROXIMITY ────────────────────────────────────────────────────────
@@ -1609,12 +1621,14 @@ function renderThematic(){
     const stockRows = (theme.stocks || []).map(s => {
       const tierCls = s.tier === 'LEADING' ? 'tier-leading' : s.tier === 'EMERGING' ? 'tier-emerging' : 'tier-developing';
       const scoreCol2 = s.score >= 70 ? '#3fb950' : s.score >= 45 ? '#58a6ff' : '#8b949e';
+      const priceStr = s.price ? `$${s.price}` : '';
       return `<div class="theme-stock-row" onclick="window.open('https://www.tradingview.com/chart/?symbol=${s.ticker}','_blank');event.stopPropagation()">
         <span class="theme-stock-ticker">${s.ticker}</span>
         <span class="theme-stock-tier ${tierCls}">${s.tier}</span>
         <div style="flex:1;height:2px;background:var(--bg4);border-radius:1px;overflow:hidden">
           <div style="height:100%;width:${Math.min(100,s.score)}%;background:${scoreCol2};border-radius:1px"></div>
         </div>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">${priceStr}</span>
         <span class="theme-stock-rs">RS ${s.rs}</span>
         <span class="theme-stock-score" style="color:${scoreCol2}">${s.score.toFixed(0)}</span>
       </div>`;
@@ -1624,7 +1638,10 @@ function renderThematic(){
       <div class="theme-header">
         <div class="theme-name">${theme.name}</div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
-          <span class="theme-score" style="color:${scoreCol}">${score.toFixed(1)}</span>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <span class="theme-score" style="color:${scoreCol}">${score.toFixed(1)}</span>
+            ${theme.score_delta!=null?`<span style="font-family:var(--font-mono);font-size:11px;color:${theme.score_delta>0?'#3fb950':theme.score_delta<0?'#f85149':'#8b949e'}">${theme.score_delta>0?'▲'+theme.score_delta.toFixed(1):theme.score_delta<0?'▼'+Math.abs(theme.score_delta).toFixed(1):'—'}</span>`:''}
+          </div>
           <span class="theme-meta">${theme.leading} leading · ${theme.emerging} emerging</span>
         </div>
         <div class="theme-score-bar"><div class="theme-score-fill" style="width:${Math.min(100,score)}%;background:${scoreCol}"></div></div>

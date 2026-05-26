@@ -2485,14 +2485,19 @@ def run(test_mode=False):
     }
     # ── Score delta: compare with previous scan ──────────────────────────────
     prev_scores = {}
+    prev_theme_scores = {}
     try:
         if Path(CFG["output_file"]).exists():
             prev = json.loads(Path(CFG["output_file"]).read_text())
             for key in ["qullamaggie","minervini","oneil","weinstein","bearish","choppy","longterm"]:
                 for r in prev.get(key, []):
                     prev_scores[r["ticker"]] = r.get("score", 0)
+            # Previous theme scores
+            for t in prev.get("themes", []):
+                prev_theme_scores[t["name"]] = t.get("score", 0)
     except: pass
 
+    # Apply stock score deltas
     all_new = q_hits + m_hits + o_hits + w_hits + swing_bear + swing_chop + lt_hits
     for theme in theme_results:
         all_new.extend(theme.get("stocks",[]))
@@ -2502,7 +2507,15 @@ def run(test_mode=False):
             delta = round(r["score"] - prev, 1)
             r["score_delta"] = delta
         else:
-            r["score_delta"] = None  # new stock, no prior score
+            r["score_delta"] = None
+
+    # Apply theme score deltas
+    for theme in theme_results:
+        prev_t = prev_theme_scores.get(theme["name"])
+        if prev_t is not None:
+            theme["score_delta"] = round(theme["score"] - prev_t, 1)
+        else:
+            theme["score_delta"] = None
 
     total = len(q_hits)+len(m_hits)+len(o_hits)+len(w_hits)+len(swing_bear)+len(swing_chop)+len(lt_hits)
     with open(CFG["output_file"], "w") as f:
