@@ -659,10 +659,10 @@ body.light-mode .hover-meta{color:#52647a}
 
   <!-- Strategy sub-tabs -->
   <div id="strategy-tabs" style="display:none"></div>
-  <!-- Swing / Long Term / Thematic toggle -->
+  <!-- Swing / Core / Thematic toggle -->
   <div id="mode-bar">
     <div class="mode-btn active" data-mode="swing">Swing Trading</div>
-    <div class="mode-btn" data-mode="lt">Long Term</div>
+    <div class="mode-btn" data-mode="lt">Core</div>
     <div class="mode-btn" data-mode="thematic">Thematic</div>
   </div>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
@@ -1155,7 +1155,7 @@ function renderLongTerm(){
   const filtered=ACTIVE_STRAT==='ALL'?all:all.filter(s=>s.strategy===ACTIVE_STRAT);
   const grid=document.getElementById('screener-grid');
   document.getElementById('screener-meta').textContent=
-    `${filtered.length} setups · CANSLIM methodology · ${STRAT_LABELS[ACTIVE_STRAT]||'All Sub-Categories'} · US`;
+    `${filtered.length} setups`;
 
   grid.innerHTML=filtered.map((s,idx)=>{
     const subLabel=STRAT_LABELS[s.strategy]||s.strategy;
