@@ -301,18 +301,13 @@ a.pill:hover{border-color:var(--accent);color:var(--accent)}
 
 /* ── THEME TOGGLE ── */
 #theme-toggle{
-  position:relative;width:44px;height:24px;border-radius:12px;
-  background:var(--bg4);border:1px solid var(--border);
-  cursor:pointer;transition:background .2s;flex-shrink:0;
-  display:flex;align-items:center;padding:0 3px;
+  font-family:var(--font-mono);font-size:10px;font-weight:600;
+  padding:3px 10px;border-radius:4px;cursor:pointer;
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--text2);transition:all .15s;flex-shrink:0;
 }
-#theme-toggle::after{
-  content:'';width:18px;height:18px;border-radius:50%;
-  background:var(--text3);transition:transform .2s,background .2s;
-  display:block;
-}
-body.light-mode #theme-toggle{background:var(--accent);border-color:var(--accent)}
-body.light-mode #theme-toggle::after{transform:translateX(20px);background:#fff}
+#theme-toggle:hover{border-color:var(--border2);color:var(--text)}
+body.light-mode #theme-toggle{background:#e2e8f0;border-color:#cbd5e1;color:#1e293b}
 body.light-mode{
   --bg:#f0f2f5;--bg2:#ffffff;--bg3:#f6f8fb;--bg4:#edf0f5;
   --border:#e2e7ef;--border2:#c8d3e0;
@@ -509,7 +504,7 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
   <div class="logo">MarketEdge <sup>BETA</sup></div>
   <div class="header-mid">
     <span class="regime-badge NEUTRAL" id="regime-badge">NEUTRAL</span>
-    <button id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"></button>
+    <button id="theme-toggle" onclick="toggleTheme()">☀ Light</button>
     <span class="header-stat">MCO <b id="hdr-mco">—</b></span>
     <span class="header-stat">%>50SMA <b id="hdr-pct50">—</b></span>
     <span class="header-stat">VIX <b id="hdr-vix">—</b></span>
@@ -1443,14 +1438,19 @@ init();
 
 // ── THEME TOGGLE ─────────────────────────────────────────────────────────────
 function toggleTheme(){
-  document.body.classList.toggle('light-mode');
-  localStorage.setItem('me_theme',document.body.classList.contains('light-mode')?'light':'dark');
+  const isLight = document.body.classList.toggle('light-mode');
+  localStorage.setItem('me_theme', isLight ? 'light' : 'dark');
+  const btn = document.getElementById('theme-toggle');
+  if(btn) btn.textContent = isLight ? '🌙 Dark' : '☀ Light';
 }
 (function(){
   if(localStorage.getItem('me_theme')==='light'){
     document.body.classList.add('light-mode');
+    const btn = document.getElementById('theme-toggle');
+    if(btn) btn.textContent = '🌙 Dark';
   }
 })();
+
 
 // ── SCREENER SECTOR FILTER ────────────────────────────────────────────────────
 let ACTIVE_SCREENER_SECTOR='ALL';
