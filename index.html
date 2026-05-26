@@ -1624,7 +1624,7 @@ function renderThematic(){
       </div>`;
     }).join('');
 
-    return `<div class="theme-card" id="theme-${ti}" onclick="toggleTheme(${ti})">
+    return `<div class="theme-card" id="theme-${ti}" onclick="toggleThemeCard(${ti})">
       <div class="theme-header">
         <div class="theme-icon">${theme.icon}</div>
         <div class="theme-name">${theme.name}</div>
@@ -1640,7 +1640,7 @@ function renderThematic(){
   }).join('');
 }
 
-function toggleTheme(idx){
+function toggleThemeCard(idx){
   const card = document.getElementById('theme-' + idx);
   if(!card) return;
   card.classList.toggle('active');
