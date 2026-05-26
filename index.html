@@ -1073,6 +1073,9 @@ function renderScreenerGrid(){
   });
   const unified = Object.values(tickerMap).sort((a,b)=>b.score-a.score);
   const filtered = unified;
+  const ready = unified.filter(s=>s.status==='READY').length;
+  const good  = unified.filter(s=>s.status==='GOOD').length;
+  const dev   = unified.filter(s=>s.status==='DEVELOPING').length;
   const statusSummary = `<span style="margin-left:8px;font-size:9px;color:var(--text3)"><span style="color:#3fb950">${ready} ready</span> · <span style="color:#58a6ff">${good} good</span> · <span style="color:var(--text3)">${dev} dev</span></span>`;
   document.getElementById('screener-meta').innerHTML = `${unified.length} setups` + statusSummary;
   const grid=document.getElementById('screener-grid');
