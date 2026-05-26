@@ -1420,6 +1420,7 @@ async function init(){
     if(res.ok){const d=await res.json();DATA=d;}
   }catch(e){}
 
+  try{
   // Header
   const regime=DATA.market_regime||'NEUTRAL';
   const rb=document.getElementById('regime-badge');
@@ -1440,7 +1441,11 @@ async function init(){
   autoSuggestMode();
   updateWatchCount();
 
-  document.getElementById('loading').style.display='none';
+  }catch(err){
+    console.error('Stratify init error:', err);
+  } finally {
+    document.getElementById('loading').style.display='none';
+  }
 }
 init();
 
