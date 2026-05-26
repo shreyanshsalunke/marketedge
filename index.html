@@ -468,6 +468,34 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
 
 
 
+
+/* ── THEMATIC ──────────────────────────────────────────────────────────────── */
+.theme-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden;cursor:pointer;transition:border-color .15s}
+.theme-card:hover{border-color:var(--border2)}
+.theme-card.active{border-color:var(--accent)}
+.theme-header{padding:14px 16px;border-bottom:1px solid var(--border)}
+.theme-icon{font-size:20px;margin-bottom:6px}
+.theme-name{font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.theme-score{font-family:var(--font-mono);font-size:22px;font-weight:700}
+.theme-meta{font-family:var(--font-mono);font-size:10px;color:var(--text3);margin-top:4px}
+.theme-top3{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.theme-ticker-pill{font-family:var(--font-mono);font-size:9px;padding:2px 7px;border-radius:3px;background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+.theme-stocks{display:none;padding:12px 16px;border-top:1px solid var(--border)}
+.theme-card.active .theme-stocks{display:block}
+.theme-stock-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)}
+.theme-stock-row:last-child{border-bottom:none}
+.theme-stock-ticker{font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--text);width:55px;flex-shrink:0}
+.theme-stock-tier{font-size:8px;font-weight:600;padding:1px 5px;border-radius:2px;flex-shrink:0}
+.tier-leading{background:rgba(63,185,80,.12);color:#3fb950;border:1px solid rgba(63,185,80,.3)}
+.tier-emerging{background:rgba(88,166,255,.1);color:#58a6ff;border:1px solid rgba(88,166,255,.25)}
+.tier-developing{background:var(--bg3);color:var(--text3);border:1px solid var(--border)}
+.theme-stock-score{font-family:var(--font-mono);font-size:12px;font-weight:600;margin-left:auto}
+.theme-stock-rs{font-family:var(--font-mono);font-size:10px;color:var(--text3);width:45px;text-align:right;flex-shrink:0}
+.theme-score-bar{height:2px;background:var(--bg4);border-radius:1px;margin-top:6px;overflow:hidden}
+.theme-score-fill{height:100%;border-radius:1px;background:var(--accent)}
+@media(max-width:768px){#theme-grid{grid-template-columns:1fr!important}}
+@media(max-width:1000px){#theme-grid{grid-template-columns:repeat(2,1fr)!important}}
+
 </style>
 </head>
 <body>
@@ -495,6 +523,7 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
   <div class="tab-btn" data-pane="sectors"><span class="dot"></span>Sectors</div>
   <div class="tab-btn" data-pane="screener"><span class="dot"></span>Screener</div>
   <div class="tab-btn" data-pane="watchlist"><span class="dot"></span>Watchlist <span id="watch-count" style="font-size:8px;margin-left:3px;opacity:.6"></span></div>
+  <div class="tab-btn" data-pane="thematic"><span class="dot"></span>Thematic</div>
   <div style="margin-left:auto;padding:0 8px"></div>
 </div>
 
@@ -591,6 +620,16 @@ body.light-mode #header{background:rgba(255,255,255,.97)}
 </div>
 
 <!-- PANE 3: SCREENER -->
+
+<!-- PANE: THEMATIC -->
+<div class="pane" id="pane-thematic">
+  <div class="section-title">Thematic Investing — Leading Themes by Market Strength</div>
+  <div style="font-family:var(--font-mono);font-size:11px;color:var(--text3);margin-bottom:16px">
+    Themes ranked by avg RS of constituents · $300M+ market cap · Liquid stocks only
+  </div>
+  <div id="theme-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div>
+</div>
+
 <div class="pane" id="pane-screener">
   <!-- Market condition selector -->
   <div id="mc-bar">
@@ -1332,6 +1371,7 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.classList.add('active');
     document.getElementById('pane-'+btn.dataset.pane).classList.add('active');
     if(btn.dataset.pane==='watchlist') renderWatchlist();
+    if(btn.dataset.pane==='thematic') renderThematic();
   });
 });
 document.getElementById('clear-watch-btn').addEventListener('click',()=>{
@@ -1541,6 +1581,60 @@ let SORT_BY = 'rs';
 function setSortBy(by){
   SORT_BY = by;
   renderScreenerGrid();
+}
+
+
+// ── THEMATIC ──────────────────────────────────────────────────────────────────
+function renderThematic(){
+  const grid = document.getElementById('theme-grid');
+  if(!grid) return;
+  const themes = DATA.themes || [];
+  if(!themes.length){
+    grid.innerHTML = '<div style="color:var(--text3);font-size:12px;font-family:var(--font-mono)">No thematic data yet — run scanner to generate.</div>';
+    return;
+  }
+
+  grid.innerHTML = themes.map((theme, ti) => {
+    const score = theme.score || 0;
+    const scoreCol = score >= 70 ? '#3fb950' : score >= 50 ? '#58a6ff' : '#d29922';
+    const top3 = (theme.top3 || []).map(t =>
+      `<span class="theme-ticker-pill">${t}</span>`
+    ).join('');
+
+    const stockRows = (theme.stocks || []).map(s => {
+      const tierCls = s.tier === 'LEADING' ? 'tier-leading' : s.tier === 'EMERGING' ? 'tier-emerging' : 'tier-developing';
+      const scoreCol2 = s.score >= 70 ? '#3fb950' : s.score >= 45 ? '#58a6ff' : '#8b949e';
+      return `<div class="theme-stock-row" onclick="window.open('https://www.tradingview.com/chart/?symbol=${s.ticker}','_blank');event.stopPropagation()">
+        <span class="theme-stock-ticker">${s.ticker}</span>
+        <span class="theme-stock-tier ${tierCls}">${s.tier}</span>
+        <div style="flex:1;height:2px;background:var(--bg4);border-radius:1px;overflow:hidden">
+          <div style="height:100%;width:${Math.min(100,s.score)}%;background:${scoreCol2};border-radius:1px"></div>
+        </div>
+        <span class="theme-stock-rs">RS ${s.rs}</span>
+        <span class="theme-stock-score" style="color:${scoreCol2}">${s.score.toFixed(0)}</span>
+      </div>`;
+    }).join('');
+
+    return `<div class="theme-card" id="theme-${ti}" onclick="toggleTheme(${ti})">
+      <div class="theme-header">
+        <div class="theme-icon">${theme.icon}</div>
+        <div class="theme-name">${theme.name}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+          <span class="theme-score" style="color:${scoreCol}">${score.toFixed(1)}</span>
+          <span class="theme-meta">▲${theme.leading} leading · ~${theme.emerging} emerging</span>
+        </div>
+        <div class="theme-score-bar"><div class="theme-score-fill" style="width:${score}%;background:${scoreCol}"></div></div>
+        <div class="theme-top3">${top3}</div>
+      </div>
+      <div class="theme-stocks">${stockRows}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleTheme(idx){
+  const card = document.getElementById('theme-' + idx);
+  if(!card) return;
+  card.classList.toggle('active');
 }
 
 </script>

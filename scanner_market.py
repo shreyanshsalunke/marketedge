@@ -1640,6 +1640,172 @@ def scan_vol_squeeze(ticker, daily, rs_pctile, cache) -> dict | None:
          "above_50sma":above_50,"pivot":round(price*1.05,2),
          "from_high_pct":round(max(0,(float(close.rolling(20).max().iloc[-1])-price)/price*100),1)},"Vol Squeeze",cache)
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  THEMATIC INVESTING
+# ══════════════════════════════════════════════════════════════════════════════
+
+THEMES = {
+    "AI & Machine Learning": {
+        "icon": "🤖",
+        "tickers": ["NVDA","AMD","PLTR","AI","SOUN","BBAI","GFAI","IREN","CORZ","APLD",
+                    "SMCI","AVGO","MRVL","ARM","TSM","ALAB","CRUS","LRCX","AMAT","KLAC",
+                    "IONQ","QUBT","RGTI","QBTS","ARQQ"]
+    },
+    "Cybersecurity": {
+        "icon": "🔒",
+        "tickers": ["CRWD","PANW","S","ZS","FTNT","CYBR","QLYS","TENB","VRNS","DDOG",
+                    "NET","OKTA","RPD","SAIL","MNDT","OSPN","CWAN","SWI","TPCS","LDOS"]
+    },
+    "Semiconductors": {
+        "icon": "💾",
+        "tickers": ["NVDA","AMD","AVGO","MRVL","QCOM","TXN","MPWR","WOLF","ON","SWKS",
+                    "MTSI","ALGM","AEHR","ACLS","ONTO","FORM","AMBA","COHU","POWI","DIOD",
+                    "SLAB","AOSL","CEVA","KLIC","VECO"]
+    },
+    "Cloud Computing": {
+        "icon": "☁️",
+        "tickers": ["DDOG","NET","SNOW","MDB","ESTC","GTLB","ZI","BRZE","NCNO","DOCN",
+                    "FSLY","BAND","WK","CLOU","CFLT","SAMSARA","IOT","TENB","HUBS","FOUR"]
+    },
+    "Biotech & Genomics": {
+        "icon": "🧬",
+        "tickers": ["RXRX","BEAM","CRSP","NTLA","EDIT","BLUE","FATE","ALLO","KYMR","VRTX",
+                    "REGN","ALNY","MRNA","BNTX","ARCT","RCUS","PMVP","IMVT","NUVL","ROIV",
+                    "RVMD","ACAD","SAGE","TGTX","PRGO"]
+    },
+    "GLP-1 & Obesity": {
+        "icon": "💊",
+        "tickers": ["NVO","LLY","VKTX","ZFOX","RDVT","NTRA","GRAL","STVN","HIMS","DOCS",
+                    "AMWL","ONEM","PHVS","CGEM","ELEV","PEPG","VTYX","ALTM","LYEL","CRNX"]
+    },
+    "Defense & Space": {
+        "icon": "🚀",
+        "tickers": ["RKLB","ASTS","LUNR","RDW","KTOS","PLTR","BWXT","HII","LHX","TDG",
+                    "AXON","CACI","SAIC","MANT","VSAT","SPIR","IRDM","GILT","SPCE","PL"]
+    },
+    "Nuclear Energy": {
+        "icon": "⚛️",
+        "tickers": ["CCJ","NNE","OKLO","SMR","BWXT","LEU","UEC","URG","EU","UUUU",
+                    "DNN","PDN","FCU","NXE","PALAF","URA","URNM","HPNN","FLR","AMPY"]
+    },
+    "Clean Energy": {
+        "icon": "🌱",
+        "tickers": ["ENPH","SEDG","RUN","NOVA","ARRY","FSLR","CSIQ","JKS","SPWR","MAXN",
+                    "BE","PLUG","FCEL","BLOOM","HYLN","NKLA","CHPT","EVGO","BLNK","WKHS"]
+    },
+    "Copper & Critical Minerals": {
+        "icon": "⛏️",
+        "tickers": ["FCX","SCCO","TECK","HBM","CS","KGHPF","CPER","COPX","IVPAF","MTAL",
+                    "MP","LITE","NOVS","SGML","LAC","PLL","ALB","SQM","LTHM","ALTM"]
+    },
+    "Fintech & Digital Payments": {
+        "icon": "💳",
+        "tickers": ["AFRM","UPST","SQ","SOFI","NU","DAVE","OPEN","HOOD","COIN","MARA",
+                    "RIOT","HUT","CIFR","BTBT","SMAR","FLYW","STEP","RELY","PAYC","ADYEY"]
+    },
+    "Robotics & Automation": {
+        "icon": "🦾",
+        "tickers": ["ISRG","IRBT","AXON","TNDM","NXPI","OUST","LIDR","AEVA","MVIS","INVZ",
+                    "VLDR","LAZR","PRCT","SIBN","STXS","UFPT","BRKS","NOVT","TRMB","MKFG"]
+    },
+}
+
+def score_theme_stock(ticker, daily, rs_pctile, mkt_cap):
+    """Score a single stock within a theme — RS, trend, momentum, liquidity."""
+    if daily is None or len(daily) < 50: return None
+    if mkt_cap < 300: return None  # small cap minimum $300M
+
+    score = 0
+    close = daily["Close"].iloc[-1]
+    vol   = daily["Volume"].iloc[-1]
+    adv   = daily["Volume"].tail(20).mean()
+
+    # Liquidity — avg dollar volume > $1M/day
+    if close * adv < 1_000_000: return None
+
+    # RS rank (0-40 pts)
+    score += min(40, rs_pctile * 0.4)
+
+    # Above 50 SMA (15 pts)
+    sma50 = daily["Close"].rolling(50).mean().iloc[-1]
+    if close > sma50: score += 15
+
+    # Above 200 SMA (10 pts)
+    sma200 = daily["Close"].rolling(200).mean().iloc[-1]
+    if close > sma200: score += 10
+
+    # Price momentum — 4-week return (15 pts)
+    if len(daily) >= 20:
+        ret4w = (close / daily["Close"].iloc[-20] - 1) * 100
+        if ret4w > 20: score += 15
+        elif ret4w > 10: score += 10
+        elif ret4w > 5: score += 5
+
+    # Volume trend (10 pts)
+    if vol > adv * 1.5: score += 10
+    elif vol > adv: score += 5
+
+    # ADR proxy — 10-day avg daily range (10 pts)
+    adr = ((daily["High"] - daily["Low"]) / daily["Close"]).tail(10).mean() * 100
+    if adr >= 4: score += 10
+    elif adr >= 2.5: score += 6
+    elif adr >= 1.5: score += 3
+
+    tier = "LEADING" if score >= 70 else "EMERGING" if score >= 45 else "DEVELOPING"
+    return {
+        "ticker":    ticker,
+        "score":     round(score, 1),
+        "tier":      tier,
+        "rs":        rs_pctile,
+        "price":     round(float(close), 2),
+        "adr":       round(adr, 1),
+        "mkt_cap":   round(mkt_cap, 0),
+        "chart":     ohlc_chart(daily, 180),
+    }
+
+def scan_themes(data, rs_pct, cache):
+    """Score all themes and return ranked results."""
+    print("\n  ── Thematic scan ──────────────────────────────────────")
+    theme_results = {}
+
+    for theme_name, theme_def in THEMES.items():
+        stocks = []
+        for ticker in theme_def["tickers"]:
+            if ticker not in data: continue
+            daily = data[ticker]
+            if daily is None or len(daily) < 50: continue
+            rs = rs_pct.get(ticker, 0)
+            mkt_cap = cache.get(ticker, {}).get("mkt_cap", 0)
+            result = score_theme_stock(ticker, daily, rs, mkt_cap)
+            if result:
+                stocks.append(result)
+
+        if not stocks: continue
+
+        stocks.sort(key=lambda x: x["score"], reverse=True)
+        leading  = [s for s in stocks if s["tier"] == "LEADING"]
+        emerging = [s for s in stocks if s["tier"] == "EMERGING"]
+
+        # Theme score = weighted avg of top 5 stocks RS
+        top5_rs = [s["rs"] for s in stocks[:5]]
+        theme_score = round(sum(top5_rs) / len(top5_rs), 1) if top5_rs else 0
+
+        theme_results[theme_name] = {
+            "name":      theme_name,
+            "icon":      theme_def["icon"],
+            "score":     theme_score,
+            "stocks":    stocks[:25],
+            "leading":   len(leading),
+            "emerging":  len(emerging),
+            "top3":      [s["ticker"] for s in stocks[:3]],
+        }
+        print(f"     {theme_name:30s} score={theme_score:5.1f} leading={len(leading)} emerging={len(emerging)}")
+
+    # Sort themes by score
+    sorted_themes = sorted(theme_results.values(), key=lambda x: x["score"], reverse=True)
+    return sorted_themes
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  LONG TERM (CANSLIM)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2035,6 +2201,7 @@ def run(test_mode=False):
         "bearish":       swing_bear,
         "choppy":        swing_chop,
         "longterm":      lt_hits,
+        "themes":        theme_results,
     }
     # ── Score delta: compare with previous scan ──────────────────────────────
     prev_scores = {}
@@ -2047,6 +2214,8 @@ def run(test_mode=False):
     except: pass
 
     all_new = q_hits + m_hits + o_hits + w_hits + swing_bear + swing_chop + lt_hits
+    for theme in theme_results:
+        all_new.extend(theme.get("stocks",[]))
     for r in all_new:
         prev = prev_scores.get(r["ticker"])
         if prev is not None:
