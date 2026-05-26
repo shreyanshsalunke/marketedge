@@ -832,24 +832,17 @@ _SPY: pd.DataFrame = pd.DataFrame()
 
 
 def compute_score_bonuses(ticker, daily, rs_pctile, score, cache, spy=None):
-    """Apply up to 20 bonus points based on:
-    - RS line new high (O'Neil #1 signal)
-    - RS line trending up
-    - Earnings beat quality
-    - 52-week high proximity
-    - Short interest sweet spot
-    - Relative volume on breakout
-    - Base count (early bases score higher)
-    """
+    """Apply up to 20 bonus points."""
     si = cache.get(ticker, {})
     bonus = 0
 
     # 1. RS line making new highs (+6 pts) — O'Neil's single strongest signal
-    #    RS line at 52w high before/during breakout = institutional accumulation
-    if spy is not None and rs_line_new_high(daily, spy):
-        bonus += 6
-    elif spy is not None and rs_line_trending_up(daily, spy, weeks=4):
-        bonus += 2  # rising but not new high
+    try:
+        if spy is not None and rs_line_new_high(daily, spy):
+            bonus += 6
+        elif spy is not None and rs_line_trending_up(daily, spy, weeks=4):
+            bonus += 2
+    except: pass
 
     # 2. Earnings beat quality (+5 pts) — beat estimates by >10%
     eps_beat = si.get("eps_beat_pct", 0) or 0
@@ -917,8 +910,6 @@ def base_result(ticker, daily, rs_pctile, score, status, tags, extra, scan, cach
         "chart":           ohlc_chart(daily, CFG["chart_bars"]),
         "weekly_chart":    weekly_ohlc_chart(daily, 104),
         "rs_line":         rs_l,
-        "rs_new_high":     rs_line_new_high(daily, spy) if spy is not None else False,
-        "rs_trending":     rs_line_trending_up(daily, spy) if spy is not None else False,
         "base_count":      compute_base_count(daily),
         "weeks_tight":     wt,
         "wt":              wt,

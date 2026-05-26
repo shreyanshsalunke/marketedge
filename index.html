@@ -1112,7 +1112,7 @@ function renderScreenerGrid(){
           <span class="strategy-badge ${s.strategy}">${STRAT_LABELS[s.strategy]||s.strategy}</span>
           <span class="status-badge ${s.status}">${s.status}</span>
           ${earningsFlag(s.ticker)}
-          ${s.rs_new_high?`<span style="font-family:var(--font-mono);font-size:7px;padding:2px 5px;border-radius:2px;background:rgba(63,185,80,.15);color:#3fb950;border:1px solid rgba(63,185,80,.3);font-weight:700">RS NH</span>`:''}
+
           ${s.base_count>=1&&s.base_count<=2?`<span style="font-family:var(--font-mono);font-size:7px;padding:2px 5px;border-radius:2px;background:rgba(88,166,255,.1);color:#58a6ff;border:1px solid rgba(88,166,255,.25)">${s.base_count===1?'1st':'2nd'} base</span>`:''}
           <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-left:auto">RS ${s.rs}th</span>
         </div>
