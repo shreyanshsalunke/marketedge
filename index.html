@@ -637,7 +637,7 @@ body.light-mode .hover-meta{color:#52647a}
 
 <div class="pane" id="pane-screener">
   <!-- Market condition selector -->
-  <div id="mc-bar">
+  <div id="mc-bar" style="display:none">
     <div class="mc-btn bullish active" data-mc="qullamaggie">Qullamaggie</div>
     <div class="mc-btn bullish" data-mc="minervini">Minervini</div>
     <div class="mc-btn bullish" data-mc="oneil">O'Neil/IBD</div>
@@ -653,13 +653,12 @@ body.light-mode .hover-meta{color:#52647a}
     <span id="search-count" style="font-family:var(--font-mono);font-size:11px;color:var(--text3)"></span>
   </div>
   <div id="regime-banner"></div>
-  <div id="screener-sector-bar"></div>
-  <!-- Auto-suggest banner -->
-  <div id="mc-suggest"></div>
+  <div id="screener-sector-bar" style="display:none"></div>
+  <div id="mc-suggest" style="display:none"></div>
   <!-- Sector filter -->
 
   <!-- Strategy sub-tabs -->
-  <div id="strategy-tabs"></div>
+  <div id="strategy-tabs" style="display:none"></div>
   <!-- Swing / Long Term / Thematic toggle -->
   <div id="mode-bar">
     <div class="mode-btn active" data-mode="swing">Swing Trading</div>
@@ -670,6 +669,7 @@ body.light-mode .hover-meta{color:#52647a}
     <span style="font-size:11px;color:var(--text3)" id="screener-meta">—</span>
     <button id="export-btn">Export CSV</button>
   </div>
+  <div id="thematic-grid" style="display:none;grid-template-columns:repeat(3,1fr);gap:12px"></div>
   <div id="screener-grid"></div>
 </div>
 
@@ -1003,8 +1003,7 @@ function renderStrategyTabs(){
   tabs.querySelectorAll('.strat-tab').forEach(t=>{
     t.addEventListener('click',()=>{
       ACTIVE_STRAT=t.dataset.strat;
-      renderStrategyTabs();
-      renderScreenerGrid();
+          renderScreenerGrid();
     });
   });
 }
@@ -1035,15 +1034,18 @@ function switchMC(mc){
     b.classList.remove('active');
     if(b.dataset.mc===mc)b.classList.add('active');
   });
-  renderStrategyTabs();
   renderScreenerGrid();
-  autoSuggestMode();
 }
 
 
 function renderScreenerGrid(){
   renderScreenerSectorBar();
   updateRegimeBanner();
+  // Show screener grid, hide thematic grid
+  const sg=document.getElementById('screener-grid');
+  const tg=document.getElementById('thematic-grid');
+  if(sg) sg.style.display='grid';
+  if(tg) tg.style.display='none';
   const mcBar=document.getElementById('mc-bar');
   const stratBar=document.getElementById('strategy-tabs');
   const metaBar=document.getElementById('screener-meta');
@@ -1439,9 +1441,7 @@ async function init(){
   renderBreadth();
   renderSectorMap();
   renderSectorRotation();
-  renderStrategyTabs();
   renderScreenerGrid();
-  autoSuggestMode();
   updateWatchCount();
 
   }catch(err){
@@ -1606,13 +1606,18 @@ function setSortBy(by){
 
 // ── THEMATIC ──────────────────────────────────────────────────────────────────
 function renderThematic(){
+  // Show thematic grid, hide screener grid
+  const sg=document.getElementById('screener-grid');
+  const tg=document.getElementById('thematic-grid');
+  if(sg) sg.style.display='none';
+  if(tg) tg.style.display='grid';
   const mcBar=document.getElementById('mc-bar');
   const stratBar=document.getElementById('strategy-tabs');
   const metaBar=document.getElementById('screener-meta');
   if(mcBar) mcBar.style.display='none';
   if(stratBar) stratBar.style.display='none';
   if(metaBar) metaBar.style.display='none';
-  const grid = document.getElementById('screener-grid');
+  const grid = document.getElementById('thematic-grid');
   if(!grid) return;
   const themes = DATA.themes || [];
   if(!themes.length){
