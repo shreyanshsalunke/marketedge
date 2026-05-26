@@ -1714,7 +1714,7 @@ THEMES = {
 def score_theme_stock(ticker, daily, rs_pctile, mkt_cap):
     """Score a single stock within a theme — RS, trend, momentum, liquidity."""
     if daily is None or len(daily) < 50: return None
-    if mkt_cap < 300: return None  # small cap minimum $300M
+    if mkt_cap > 0 and mkt_cap < 300: return None  # small cap minimum $300M (skip if not in cache)
 
     score = 0
     close = daily["Close"].iloc[-1]
@@ -2192,11 +2192,11 @@ def run(test_mode=False):
     if missing_theme:
         print(f"  Fetching {len(missing_theme)} theme tickers…")
         import yfinance as yf2
-        raw2 = yf2.download(missing_theme, period="2y", interval="1d",
-                            group_by="ticker", auto_adjust=True, progress=False)
         for t in missing_theme:
             try:
-                df2 = raw2[t].copy() if len(missing_theme) > 1 and t in raw2.columns.get_level_values(0) else (raw2.copy() if len(missing_theme)==1 else None)
+                import yfinance as _yf
+                tk = _yf.Ticker(t)
+                df2 = tk.history(period="2y", interval="1d", auto_adjust=True)
                 if df2 is not None and len(df2) > 50:
                     df2.dropna(how="all", inplace=True)
                     data[t] = df2
