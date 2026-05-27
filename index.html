@@ -1110,16 +1110,18 @@ function renderScreenerGrid(){
     return`<div class="scard" data-ticker="${s.ticker}" data-name="${s.name||''}">
       <div class="scard-default">
         <div class="scard-row1">
-          <div style="display:flex;align-items:center;gap:7px">
+          <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0">
             <span class="scard-rank" style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">#${idx+1}</span>
             <span class="scard-ticker">${s.ticker}</span>
             <button class="star-btn${isSaved(s.ticker)?' saved':''}" data-ticker="${s.ticker}" onclick="event.stopPropagation();toggleWatchlist('${s.ticker}')">${isSaved(s.ticker)?'★':'☆'}</button>
-          <button class="expand-arrow" onclick="event.stopPropagation();toggleCardExpand('${s.ticker}',this)" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;padding:0 2px;line-height:1">▼</button>
-          <button onclick="openTV('${s.ticker}',event)" style="background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);color:#58a6ff;border-radius:3px;font-size:9px;font-family:var(--font-mono);padding:2px 7px;cursor:pointer;white-space:nowrap">TV</button>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
-            <span class="scard-score" style="color:${s.score>=80?'#3fb950':s.score>=65?'#58a6ff':'#d29922'}">${s.score.toFixed(1)}</span>
-            ${s.score_delta!=null?`<span style="font-family:var(--font-mono);font-size:11px;color:${s.score_delta>0?'#3fb950':s.score_delta<0?'#f85149':'#8b949e'}">${s.score_delta>0?'▲'+s.score_delta.toFixed(1):s.score_delta<0?'▼'+Math.abs(s.score_delta).toFixed(1):'—'}</span>`:''}
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <button onclick="openTV('${s.ticker}',event)" style="background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);color:#58a6ff;border-radius:3px;font-size:9px;font-family:var(--font-mono);padding:2px 8px;cursor:pointer;white-space:nowrap;flex-shrink:0">TV ↗</button>
+            <button class="expand-arrow" onclick="event.stopPropagation();toggleCardExpand('${s.ticker}',this)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text3);border-radius:3px;font-size:11px;cursor:pointer;padding:2px 7px;line-height:1;flex-shrink:0">▼</button>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+              <span class="scard-score" style="color:${s.score>=80?'#3fb950':s.score>=65?'#58a6ff':'#d29922'}">${s.score.toFixed(1)}</span>
+              ${s.score_delta!=null?`<span style="font-family:var(--font-mono);font-size:11px;color:${s.score_delta>0?'#3fb950':s.score_delta<0?'#f85149':'#8b949e'}">${s.score_delta>0?'▲'+s.score_delta.toFixed(1):s.score_delta<0?'▼'+Math.abs(s.score_delta).toFixed(1):'—'}</span>`:''}
+            </div>
           </div>
         </div>
         <div class="scard-row2">
