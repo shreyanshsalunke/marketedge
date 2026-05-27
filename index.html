@@ -42,13 +42,13 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
   padding:0 24px;height:54px;
 }
 .logo{
-  font-family:var(--font-display);font-size:22px;font-weight:700;
+  font-family:var(--font-display);font-size:28px;font-weight:700;
   background:linear-gradient(135deg,#58a6ff 0%,#3fb950 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
   background-clip:text;
-  letter-spacing:.06em;flex-shrink:0;
+  letter-spacing:.16em;flex-shrink:0;
+  text-transform:uppercase;
 }
-.logo sup{font-size:9px;font-weight:500;color:var(--text3);letter-spacing:.12em;margin-left:5px;-webkit-text-fill-color:var(--text3)}
 .header-mid{flex:1;display:flex;align-items:center;gap:10px}
 .regime-badge{
   font-family:var(--font-mono);font-size:9px;font-weight:600;
@@ -535,7 +535,7 @@ body.light-mode .hover-meta{color:#52647a}
 
 <!-- HEADER -->
 <div id="header">
-  <div class="logo">Stratify <sup>BETA</sup></div>
+  <div class="logo">STRATIFY</div>
   <div class="header-mid">
     <span class="regime-badge NEUTRAL" id="regime-badge">NEUTRAL</span>
     <button id="theme-toggle" onclick="toggleTheme()">☀ Light</button>
@@ -1117,7 +1117,6 @@ function renderScreenerGrid(){
           </div>
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
             <button onclick="openTV('${s.ticker}',event)" style="background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);color:#58a6ff;border-radius:3px;font-size:9px;font-family:var(--font-mono);padding:2px 8px;cursor:pointer;white-space:nowrap;flex-shrink:0">TV ↗</button>
-            <button class="expand-arrow" onclick="event.stopPropagation();toggleCardExpand('${s.ticker}',this)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text3);border-radius:3px;font-size:11px;cursor:pointer;padding:2px 7px;line-height:1;flex-shrink:0">▼</button>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
               <span class="scard-score" style="color:${s.score>=80?'#3fb950':s.score>=65?'#58a6ff':'#d29922'}">${s.score.toFixed(1)}</span>
               ${s.score_delta!=null?`<span style="font-family:var(--font-mono);font-size:11px;color:${s.score_delta>0?'#3fb950':s.score_delta<0?'#f85149':'#8b949e'}">${s.score_delta>0?'▲'+s.score_delta.toFixed(1):s.score_delta<0?'▼'+Math.abs(s.score_delta).toFixed(1):'—'}</span>`:''}
@@ -1578,22 +1577,7 @@ function filterBySearch(val){
 
 
 // ── CARD EXPAND / TV BUTTON ──────────────────────────────────────────────────
-function toggleCardExpand(ticker, el){
-  const card = el.closest('.scard');
-  if(!card) return;
-  const isOpen = card.classList.contains('tapped');
-  document.querySelectorAll('.scard.tapped').forEach(c => {
-    c.classList.remove('tapped');
-    const arr = c.querySelector('.expand-arrow');
-    if(arr) arr.textContent = '▼';
-  });
-  if(!isOpen){
-    card.classList.add('tapped');
-    el.textContent = '▲';
-  } else {
-    el.textContent = '▼';
-  }
-}
+function toggleCardExpand(){}
 
 function openTV(ticker, e){
   e.stopPropagation();
