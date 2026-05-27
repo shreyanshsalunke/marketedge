@@ -241,6 +241,10 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 .strategy-badge.BEAR{background:rgba(239,68,68,.1);color:var(--bear);border-color:rgba(239,68,68,.3)}
 .strategy-badge.EGU{background:rgba(139,92,246,.1);color:var(--purple);border-color:rgba(139,92,246,.3)}
 .strategy-badge.CORE{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
+.strategy-badge.VCP{background:rgba(188,140,255,.12);color:#bc8cff;border-color:rgba(188,140,255,.3)}
+.strategy-badge.FLAG{background:rgba(210,153,34,.12);color:#d29922;border-color:rgba(210,153,34,.3)}
+.strategy-badge.BASE{background:rgba(88,166,255,.1);color:#58a6ff;border-color:rgba(88,166,255,.25)}
+.strategy-badge.Swing{background:rgba(63,185,80,.12);color:#3fb950;border-color:rgba(63,185,80,.3)}
 .status-badge{font-family:var(--font-mono);font-size:11px;font-weight:600;padding:3px 8px;border-radius:3px;letter-spacing:.05em;flex-shrink:0}
 .status-badge.READY{background:rgba(63,185,80,.15);color:#3fb950}
 .status-badge.GOOD{background:rgba(88,166,255,.12);color:#58a6ff}
@@ -979,6 +983,9 @@ const STRATEGIES = {
 
 const STRAT_LABELS = {
   VCP:            'VCP',
+  FLAG:           'Flag',
+  BASE:           'Tight Base',
+  Swing:          'Swing',
   FLAG:           'Bull Flag',
   EP:             'Episodic Pivot',
   BASE:           'Base Breakout',
@@ -1139,9 +1146,9 @@ function renderScreenerGrid(){
       </div>
       <div class="scard-hover">
         <div class="hover-grid">
-          <div class="hover-item"><div class="hover-label">EPS</div><div class="hover-val ${epsCls}">${epsVal}</div></div>
-          <div class="hover-item"><div class="hover-label">Rev</div><div class="hover-val ${revCls}">${revVal}</div></div>
-          <div class="hover-item"><div class="hover-label">From pivot</div><div class="hover-val ${pivotCls}">${fromPivot.toFixed(1)}%</div></div>
+          <div class="hover-item"><div class="hover-label">ADR</div><div class="hover-val pos">${s.adr?s.adr+'%':'—'}</div></div>
+          <div class="hover-item"><div class="hover-label">Vol ratio</div><div class="hover-val ${(s.vol_ratio||1)<=0.5?'pos':''}">${s.vol_ratio?Math.round(s.vol_ratio*100)+'%':'—'}</div></div>
+          <div class="hover-item"><div class="hover-label">From high</div><div class="hover-val ${pivotCls}">${fromPivot.toFixed(1)}%</div></div>
           <div class="hover-item"><div class="hover-label">Short float</div><div class="hover-val ${sfWarn?'warn':''}">${s.sf!=null?s.sf+'%':'—'}</div></div>
         </div>
         <div class="hover-meta">${s.sector||''} · $${fmtPrice(s.price)}${earningsFlag(s.ticker)}</div>
