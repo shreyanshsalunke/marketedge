@@ -434,7 +434,6 @@ body.light-mode .hover-meta{color:#52647a}
   #watchlist-grid{grid-template-columns:1fr!important}
 
   /* Tap to expand */
-  .scard:hover .scard-hover{display:none}
   .scard.tapped .scard-hover{display:block}
 }
 
@@ -1579,8 +1578,9 @@ document.addEventListener('click', function(e){
   const ticker = card.dataset.ticker;
   if(!ticker) return;
 
-  if(window.innerWidth <= 768){
-    // Mobile: first tap expands, second tap opens TradingView
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if(isTouch){
+    // Touch device: first tap expands details, second tap opens TradingView
     if(!card.classList.contains('tapped')){
       e.preventDefault();
       e.stopPropagation();
