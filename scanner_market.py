@@ -34,7 +34,7 @@ warnings.filterwarnings("ignore")
 CFG = {
     "min_price":       3.0,
     "min_avg_vol":     100_000,
-    "top_n":           50,          # max results per scan category
+    "top_n":           100,         # max results per scan category
     "chart_bars":      180,         # OHLCV bars sent to frontend (180 daily = ~6M)
     "output_file":     "market_data.json",
     "batch_size":      400,
