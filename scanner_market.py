@@ -586,8 +586,17 @@ def fetch_yf_fundamentals(ticker: str) -> dict:
         result["mkt_cap"]    = (info.get("marketCap", 0) or 0) / 1e6
         result["inst_own"]   = round((info.get("heldPercentInstitutions") or 0) * 100, 1)
         result["short_float"]= round((info.get("shortPercentOfFloat") or 0) * 100, 1)
-        result["eps_growth"] = round((info.get("earningsGrowth") or 0) * 100, 1)
-        result["rev_growth"] = round((info.get("revenueGrowth") or 0) * 100, 1)
+        result["eps_growth"]       = round((info.get("earningsGrowth") or 0) * 100, 1)
+        result["rev_growth"]       = round((info.get("revenueGrowth") or 0) * 100, 1)
+        result["roe"]              = round((info.get("returnOnEquity") or 0) * 100, 1)
+        result["roic"]             = round((info.get("returnOnAssets") or 0) * 100, 1)  # proxy
+        result["operating_margin"] = round((info.get("operatingMargins") or 0) * 100, 1)
+        result["peg_ratio"]        = info.get("pegRatio", None)
+        result["debt_to_equity"]   = info.get("debtToEquity", None)
+        if result["debt_to_equity"]: result["debt_to_equity"] = result["debt_to_equity"] / 100
+        result["interest_coverage"]= info.get("ebitda", None)  # proxy
+        result["fcf_positive"]     = (info.get("freeCashflow") or 0) > 0
+        result["pe"]               = info.get("trailingPE", None)
 
         # Quarterly EPS — yfinance quarterly_financials
         try:
@@ -641,6 +650,10 @@ def fetch_yf_fundamentals(ticker: str) -> dict:
 def enrich_fundamentals(tickers: list[str], cache: dict) -> dict:
     needed = [t for t in tickers if t not in cache]
     if not needed: return cache
+    # Always enrich MUST_INCLUDE mega caps regardless of scan results
+    MEGA_CAPS = ["NVDA","AMD","MSFT","AAPL","META","AMZN","GOOGL","AVGO","TSLA","LLY",
+                 "V","MA","JPM","UNH","NFLX","COST","AMD","CRM","ADBE","NOW"]
+    needed = list(dict.fromkeys(MEGA_CAPS + needed))
     print(f"  ↓  Fetching fundamentals for {len(needed)} scan hits…")
     out = dict(cache)
     for i, t in enumerate(needed):
@@ -1106,10 +1119,14 @@ def canslim_ok(ticker, rs_pctile, cache) -> bool:
     O'Neil CANSLIM gate — as complete as free data allows.
     C: MRQ EPS ≥20% YoY, profitable
     A: Annual EPS stable (grew each of last 3 years) OR 3yr CAGR ≥15%
-    RS: ≥80th percentile
+    RS: ≥80th percentile (≥65 for mega caps >$100B)
     Both EPS and revenue growing required.
     """
-    if rs_pctile < 80: return False
+    si = cache.get(ticker, {})
+    mkt_cap = si.get("mkt_cap", 0) or 0
+    # Mega caps ($100B+) can have lower RS — they move slower but are still leaders
+    rs_min = 65 if mkt_cap >= 100_000 else 80
+    if rs_pctile < rs_min: return False
     si = cache.get(ticker, {})
     q_avail = si.get("q_data_available", False)
     a_avail = si.get("a_data_available", False)
@@ -2262,139 +2279,133 @@ def scan_themes(data, rs_pct, cache):
     return sorted_themes
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  LONG TERM (CANSLIM)
+#  CORE — Quality Compounder Methodology
 # ══════════════════════════════════════════════════════════════════════════════
+# Criteria:
+#   Profitability : ROE ≥15%, ROIC >12%, operating margin > industry avg
+#   Growth        : 5yr EPS CAGR ≥12%, steady revenue growth, positive FCF
+#   Balance sheet : D/E < 0.8, interest coverage > 5x
+#   Institutional : steady QoQ increase in institutional ownership
+#   Valuation     : PEG < 1.5
+#   Entry timing  : price pulling back to upward-sloping 200-day SMA
 
-def scan_canslim(ticker, daily, rs_pctile, cache) -> list[dict]:
-    """Run all 5 CANSLIM sub-scans using comprehensive FMP data when available."""
+def scan_core(ticker, daily, rs_pctile, cache) -> list[dict]:
+    """Quality compounder scan — durable businesses at 200 SMA pullbacks."""
     if not basic_ok(daily): return []
     close = daily["Close"]; price = float(close.iloc[-1])
-    if len(daily) < 100: return []
+    if len(daily) < 200: return []
     si = cache.get(ticker, {})
 
-    q_avail    = si.get("q_data_available", False)
-    a_avail    = si.get("a_data_available", False)
-    eps_g      = (si.get("mrq_eps_growth") if q_avail else si.get("eps_growth", 0)) or 0
-    rev_g      = (si.get("mrq_rev_growth") if q_avail else si.get("rev_growth", 0)) or 0
-    eps_accel  = si.get("eps_accelerating", False)
-    rev_accel  = si.get("rev_accelerating", False)
-    eps_3q     = si.get("eps_accel_3q", False)     # 3 consecutive quarters accelerating
-    rev_3q     = si.get("rev_accel_3q", False)
-    eps_pos    = si.get("eps_positive", True)
-    ann_stable = si.get("annual_eps_stable", False)
-    ann_cagr   = si.get("annual_eps_growth_3y") or 0
-    ann_rev_cagr = si.get("annual_rev_growth_3y") or 0
-    buyback    = si.get("buyback_trend", False)
-    float_cat  = si.get("float_category", "large")  # small/mid/large
-    inst       = si.get("inst_own", 0) or 0
-    mktcap     = si.get("mkt_cap", 0) or 0
+    # ── Pull all available data ───────────────────────────────────────────────
+    roe          = si.get("roe", 0) or 0              # Return on Equity %
+    roic         = si.get("roic", 0) or 0             # Return on Invested Capital %
+    op_margin    = si.get("operating_margin", 0) or 0 # Operating margin %
+    eps_cagr_5y  = si.get("annual_eps_growth_3y", 0) or 0  # Use 3yr as proxy for 5yr
+    eps_growth   = si.get("mrq_eps_growth") or si.get("eps_growth", 0) or 0
+    rev_growth   = si.get("mrq_rev_growth") or si.get("rev_growth", 0) or 0
+    fcf_positive = si.get("fcf_positive", None)
+    de_ratio     = si.get("debt_to_equity", None)
+    int_coverage = si.get("interest_coverage", None)
+    inst_own     = si.get("inst_own", 0) or 0
+    peg          = si.get("peg_ratio", None)
+    pe           = si.get("pe", None)
+    mkt_cap      = si.get("mkt_cap", 0) or 0
 
-    if q_avail and not eps_pos: return []
+    # ── 200 SMA must be rising (upward sloping) ───────────────────────────────
+    s200 = sma(close, 200)
+    s200_val = float(s200.iloc[-1])
+    s200_1m  = float(s200.iloc[-21]) if len(s200) >= 21 else s200_val
+    s50_val  = float(sma(close, 50).iloc[-1])
+
+    if s200_val <= s200_1m * 0.998: return []   # 200 SMA must be rising
+    if price < s200_val * 0.85: return []        # price can't be too far below 200
+
+    # ── Proximity to 200 SMA (entry timing) ──────────────────────────────────
+    dist_200 = (price - s200_val) / s200_val * 100  # % above/below 200 SMA
+    # Best entry: price within -5% to +8% of 200 SMA (pullback zone)
+    near_200 = -5 <= dist_200 <= 8
 
     results = []
+    score = 0
+    tags = []
 
-    def build_tags(base, extra_conditions):
-        t = list(base)
-        if eps_3q:      t.append("EPS accel 3Q ↑↑")
-        elif eps_accel: t.append("EPS accel ↑")
-        if rev_accel:   t.append("Rev accel ↑")
-        if ann_stable:  t.append("3yr EPS growth")
-        if buyback:     t.append("Buybacks ↑")
-        if float_cat == "small": t.append("Small float")
-        for cond in extra_conditions: t.append(cond)
-        return t
+    # ── PROFITABILITY SCORE (0-30 pts) ────────────────────────────────────────
+    prof_score = 0
+    if roe >= 20:       prof_score += 15; tags.append(f"ROE {roe:.0f}%")
+    elif roe >= 15:     prof_score += 10; tags.append(f"ROE {roe:.0f}%")
+    if roic >= 15:      prof_score += 10; tags.append(f"ROIC {roic:.0f}%")
+    elif roic >= 12:    prof_score += 7
+    if op_margin >= 20: prof_score += 5
+    elif op_margin >= 10: prof_score += 3
 
-    # S/L bonus points
-    float_bonus   = 8 if float_cat=="small" else 4 if float_cat=="mid" else 0
-    buyback_bonus = 5 if buyback else 0
-    annual_bonus  = 8 if ann_stable else (4 if ann_cagr >= 15 else 0)
-    accel_bonus   = 8 if eps_3q else (4 if eps_accel else 0)
+    # If no profitability data, use eps_growth as proxy
+    if prof_score == 0 and eps_growth >= 20:
+        prof_score = 15
+        tags.append(f"EPS +{eps_growth:.0f}%")
 
-    # 1. New Highs + Earnings (C+A+N)
-    if eps_g >= 25 and rev_g >= 20 and rs_pctile >= 80:
-        high52 = float(daily["High"].rolling(min(252,len(daily))).max().iloc[-1])
-        from_high = (high52-price)/high52*100
-        if from_high <= 8:
-            s50_val = float(sma(close, 50).iloc[-1])
-            if price >= s50_val * 0.97:
-                score = round(
-                    rs_pctile*.28 + min(100,eps_g/1.5)*.22 + min(100,rev_g/1.5)*.18 +
-                    max(0,100-from_high*8)*.22 +
-                    accel_bonus*.04 + annual_bonus*.03 + float_bonus*.02 + buyback_bonus*.01,
-                1)
-                results.append(base_result(ticker,daily,rs_pctile,score,
-                    "READY" if score>=75 else "GOOD",
-                    build_tags([f"EPS +{eps_g:.0f}%", f"Rev +{rev_g:.0f}%", f"RS {rs_pctile:.0f}th"], []),
-                    {"strategy":"NH_EARNINGS","canslim":score,"pattern":"New High",
-                     "from_high_pct":round(from_high,1),"inst":inst},"CANSLIM",cache))
+    # ── GROWTH SCORE (0-30 pts) ───────────────────────────────────────────────
+    growth_score = 0
+    if eps_cagr_5y >= 20:  growth_score += 15; tags.append(f"EPS CAGR {eps_cagr_5y:.0f}%")
+    elif eps_cagr_5y >= 12: growth_score += 10; tags.append(f"EPS CAGR {eps_cagr_5y:.0f}%")
+    elif eps_growth >= 20:  growth_score += 8; tags.append(f"EPS +{eps_growth:.0f}%")
+    if rev_growth >= 15:    growth_score += 10; tags.append(f"Rev +{rev_growth:.0f}%")
+    elif rev_growth >= 8:   growth_score += 6
+    if fcf_positive:        growth_score += 5; tags.append("FCF+")
 
-    # 2. Market Leader Pullback (first pullback to 50d)
-    if rs_pctile >= 80 and eps_g >= 20 and rev_g >= 15:
-        s50 = sma(close,50); s50_val = float(s50.iloc[-1])
-        dist_50 = (price-s50_val)/s50_val*100
-        s50_4w = float(s50.iloc[-21]) if len(s50)>=21 else s50_val
-        was_above = float(close.iloc[-21]) > s50_4w*1.06 if len(close)>=21 else False
-        if was_above and -2 <= dist_50 <= 5:
-            score = round(
-                rs_pctile*.32 + max(0,(5-abs(dist_50))*12)*.25 +
-                min(100,eps_g/2)*.20 + min(100,rev_g/2)*.18 +
-                accel_bonus*.03 + annual_bonus*.02,
-            1)
-            results.append(base_result(ticker,daily,rs_pctile,score,
-                "READY" if score>=72 else "GOOD",
-                build_tags([f"First 50d pullback", f"RS {rs_pctile:.0f}th", f"EPS +{eps_g:.0f}%"], []),
-                {"strategy":"LEADER_PULLBACK","canslim":score,"pattern":"50d SMA Test",
-                 "from_high_pct":round(dist_50,1),"inst":inst},"CANSLIM",cache))
+    # ── BALANCE SHEET SCORE (0-15 pts) ────────────────────────────────────────
+    bs_score = 0
+    if de_ratio is not None:
+        if de_ratio < 0.3:   bs_score += 8
+        elif de_ratio < 0.8: bs_score += 5
+    else: bs_score += 3  # assume ok if no data
+    if int_coverage is not None:
+        if int_coverage > 10: bs_score += 7
+        elif int_coverage > 5: bs_score += 5
+    else: bs_score += 3
 
-    # 3. Emerging Leader (small/mid cap + 3-quarter acceleration + early Stage 2)
-    if eps_g >= 30 and rev_g >= 25 and rs_pctile >= 75 and mktcap < 10e9:
-        s200_val = float(sma(close,200).iloc[-1]) if len(close)>=200 else price*.9
-        s50_val  = float(sma(close,50).iloc[-1])
-        if price > s200_val and price > s50_val * 0.97:
-            size_bonus = 20 if mktcap < 2e9 else 10
-            score = round(
-                rs_pctile*.28 + min(100,eps_g/1.5)*.28 +
-                min(100,rev_g/1.5)*.20 + size_bonus*.12 +
-                accel_bonus*.07 + float_bonus*.05,
-            1)
-            results.append(base_result(ticker,daily,rs_pctile,score,
-                "READY" if score>=70 else "GOOD",
-                build_tags([f"EPS +{eps_g:.0f}%", f"Rev +{rev_g:.0f}%", "Small cap leader"], []),
-                {"strategy":"EMERGING","canslim":score,"pattern":"Emerging Stage 2",
-                 "from_high_pct":5.0,"inst":inst},"CANSLIM",cache))
+    # ── INSTITUTIONAL SCORE (0-10 pts) ────────────────────────────────────────
+    inst_score = 0
+    if inst_own >= 60:    inst_score = 10; tags.append(f"Inst {inst_own:.0f}%")
+    elif inst_own >= 40:  inst_score = 7;  tags.append(f"Inst {inst_own:.0f}%")
+    elif inst_own >= 20:  inst_score = 4
 
-    # 4. Institutional Accumulation — requires buyback confirmation when available
-    if inst >= 40 and rs_pctile >= 70 and eps_g >= 20 and rev_g >= 15:
-        s50_val = float(sma(close,50).iloc[-1])
-        if price >= s50_val * 0.97:
-            score = round(
-                rs_pctile*.28 + min(100,inst)*.22 +
-                min(100,eps_g/2)*.22 + min(100,rev_g/2)*.18 +
-                buyback_bonus*.05 + accel_bonus*.05,
-            1)
-            if score >= 65:
-                results.append(base_result(ticker,daily,rs_pctile,score,
-                    "GOOD" if score>=70 else "DEVELOPING",
-                    build_tags([f"Inst own {inst:.0f}%", f"EPS +{eps_g:.0f}%", f"Rev +{rev_g:.0f}%"], []),
-                    {"strategy":"INST_ACCUM","canslim":score,"pattern":"Accumulation Base",
-                     "from_high_pct":8.0,"inst":inst},"CANSLIM",cache))
+    # ── VALUATION SCORE (0-10 pts) ────────────────────────────────────────────
+    val_score = 0
+    if peg is not None:
+        if peg < 1.0:    val_score = 10; tags.append(f"PEG {peg:.1f}")
+        elif peg < 1.5:  val_score = 7;  tags.append(f"PEG {peg:.1f}")
+        elif peg < 2.0:  val_score = 4
+    else: val_score = 5  # no PEG data, give neutral score
 
-    # 5. Industry Group Leader — top-tier RS + 3yr annual EPS growth
-    if rs_pctile >= 88 and eps_g >= 20 and rev_g >= 15:
-        high52 = float(daily["High"].rolling(min(252,len(daily))).max().iloc[-1])
-        from_high = (high52-price)/high52*100
-        score = round(
-            rs_pctile*.38 + min(100,eps_g/1.5)*.28 + min(100,rev_g/2)*.22 +
-            annual_bonus*.07 + accel_bonus*.05,
-        1)
-        results.append(base_result(ticker,daily,rs_pctile,score,
-            "READY" if score>=80 else "GOOD",
-            build_tags([f"RS {rs_pctile:.0f}th percentile", f"EPS +{eps_g:.0f}%", "Sector leader"],
-                       [f"Annual CAGR +{ann_cagr:.0f}%"] if ann_cagr > 0 else []),
-            {"strategy":"INDUSTRY_LEADER","canslim":score,"pattern":"Market Leader",
-             "from_high_pct":round(from_high,1),"inst":inst},"CANSLIM",cache))
+    # ── ENTRY TIMING BONUS (0-5 pts) ──────────────────────────────────────────
+    timing_score = 0
+    if near_200:
+        timing_score = 5
+        tags.append(f"At 200 SMA ({dist_200:+.1f}%)")
+    elif dist_200 <= 15:
+        timing_score = 3
 
-    return results
+    # ── RS BONUS (0-5 pts) ────────────────────────────────────────────────────
+    rs_score = min(5, rs_pctile / 20)
+
+    # ── TOTAL SCORE ───────────────────────────────────────────────────────────
+    score = round(prof_score + growth_score + bs_score + inst_score + val_score + timing_score + rs_score, 1)
+    score = min(score, 100)
+
+    # Minimum threshold — must have some profitability AND growth data
+    if prof_score == 0 and growth_score < 8: return []
+    if score < 45: return []
+
+    status = "READY" if (score >= 70 and near_200) else "GOOD" if score >= 60 else "DEVELOPING"
+
+    return [base_result(ticker, daily, rs_pctile, score, status, tags,
+        {"strategy": "CORE", "methodology": "Quality Compounder",
+         "roe": round(roe,1), "roic": round(roic,1),
+         "eps_cagr": round(eps_cagr_5y,1), "peg": peg,
+         "de_ratio": de_ratio, "inst": inst_own,
+         "dist_200": round(dist_200,1),
+         "from_high_pct": round((float(daily["High"].rolling(252,min_periods=50).max().iloc[-1])-price)/float(daily["High"].rolling(252,min_periods=50).max().iloc[-1])*100,1)
+        }, "Core", cache)]
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  GITHUB UPLOAD
@@ -2572,11 +2583,11 @@ def run(test_mode=False):
     swing_bear = run_scans(BEARISH_SCANS)
     print(f"\n  🔍  Choppy market scans…")
     swing_chop = run_scans(CHOPPY_SCANS)
-    print(f"\n  🔍  CANSLIM long term scans…")
+    print(f"\n  🔍  Core quality compounder scans…")
     lt_hits = []
     for t in valid:
         try:
-            lt_hits.extend(scan_canslim(t, data[t], rs_pct.get(t,0), cache))
+            lt_hits.extend(scan_core(t, data[t], rs_pct.get(t,0), cache))
         except: pass
     lt_hits.sort(key=lambda x: x["score"], reverse=True)
     seen_lt = set(); lt_deduped = []
@@ -2584,7 +2595,7 @@ def run(test_mode=False):
         if r["ticker"] not in seen_lt:
             lt_deduped.append(r); seen_lt.add(r["ticker"])
     lt_hits = lt_deduped[:CFG["top_n"]]
-    print(f"     CANSLIM          {len(lt_hits)} unique tickers")
+    print(f"     Core             {len(lt_hits)} unique tickers")
 
     all_hits = all_hits_swing + swing_bear + swing_chop + lt_hits
     hit_tickers = list({r["ticker"] for r in all_hits})

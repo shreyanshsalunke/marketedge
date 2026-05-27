@@ -240,7 +240,7 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 .strategy-badge.PP{background:rgba(6,182,212,.1);color:var(--cyan);border-color:rgba(6,182,212,.3)}
 .strategy-badge.BEAR{background:rgba(239,68,68,.1);color:var(--bear);border-color:rgba(239,68,68,.3)}
 .strategy-badge.EGU{background:rgba(139,92,246,.1);color:var(--purple);border-color:rgba(139,92,246,.3)}
-.strategy-badge.CANSLIM{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
+.strategy-badge.CORE{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
 .status-badge{font-family:var(--font-mono);font-size:11px;font-weight:600;padding:3px 8px;border-radius:3px;letter-spacing:.05em;flex-shrink:0}
 .status-badge.READY{background:rgba(63,185,80,.15);color:#3fb950}
 .status-badge.GOOD{background:rgba(88,166,255,.12);color:#58a6ff}
@@ -1208,10 +1208,10 @@ function renderLongTerm(){
       </div>
       <div class="scard-hover">
         <div class="hover-grid">
-          <div class="hover-item"><div class="hover-label">EPS</div><div class="hover-val ${epsCls}">${epsVal}</div></div>
-          <div class="hover-item"><div class="hover-label">Rev</div><div class="hover-val ${revCls}">${revVal}</div></div>
-          <div class="hover-item"><div class="hover-label">Inst own</div><div class="hover-val">${s.inst?s.inst+'%':'—'}</div></div>
-          <div class="hover-item"><div class="hover-label">3yr trend</div><div class="hover-val ${s.annual_stable?'pos':''}">${s.annual_stable?'Rising':'—'}</div></div>
+          <div class="hover-item"><div class="hover-label">ROE</div><div class="hover-val ${(s.roe||0)>=15?'pos':''}">${s.roe?s.roe+'%':'—'}</div></div>
+          <div class="hover-item"><div class="hover-label">EPS CAGR</div><div class="hover-val pos">${s.eps_cagr?'+'+s.eps_cagr+'%':'—'}</div></div>
+          <div class="hover-item"><div class="hover-label">PEG</div><div class="hover-val ${(s.peg||99)<1.5?'pos':'warn'}">${s.peg?s.peg.toFixed(1):'—'}</div></div>
+          <div class="hover-item"><div class="hover-label">Dist 200</div><div class="hover-val">${s.dist_200!=null?s.dist_200+'%':'—'}</div></div>
         </div>
         <div class="hover-meta">${s.sector||''} · $${fmtPrice(s.price)}</div>
 
