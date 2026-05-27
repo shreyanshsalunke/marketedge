@@ -2362,9 +2362,11 @@ def scan_swing_unified(ticker, daily, rs_pctile, cache, spy=None) -> dict | None
         dist_e20 = abs(price - e20) / e20 * 100
         near_ema = dist_e10 <= 3 or dist_e20 <= 3
 
-        if not tight_price: return None
-        if not vol_dryup: return None
-        if not near_ema: return None
+        # Require at least 2 of 3 tightness conditions
+        conditions_met = sum([tight_price, vol_dryup, near_ema])
+        if conditions_met < 2: return None
+        # Must have at least volume dry-up OR price tightness
+        if not tight_price and not vol_dryup: return None
 
         # ── SCORING ───────────────────────────────────────────────────────────
         score = 0
