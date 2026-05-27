@@ -1,8 +1,9 @@
-name: MarketEdge Daily Scan
+name: Stratify Daily Scan
 
 on:
   schedule:
-    - cron: '32 21 * * 1-5'
+    # 11:00 PM UTC = 6:00 PM ET (works for both EST and EDT)
+    - cron: '0 23 * * 1-5'
   workflow_dispatch:
 
 env:
@@ -30,7 +31,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-marketedge
+          key: ${{ runner.os }}-pip-stratify
           restore-keys: ${{ runner.os }}-pip-
 
       - name: Install dependencies
@@ -46,8 +47,8 @@ jobs:
 
       - name: Commit market_data.json
         run: |
-          git config user.name "MarketEdge Bot"
-          git config user.email "bot@marketedge.app"
+          git config user.name "Stratify Bot"
+          git config user.email "bot@stratify.app"
           git add market_data.json
           git diff --staged --quiet || git commit -m "Scan $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push
