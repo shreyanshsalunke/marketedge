@@ -537,13 +537,15 @@ body.light-mode .hover-meta{color:#52647a}
 <div id="header">
   <div class="logo">STRATIFY</div>
   <div class="header-mid">
-    <span class="regime-badge NEUTRAL" id="regime-badge">NEUTRAL</span>
-    <button id="theme-toggle" onclick="toggleTheme()">☀ Light</button>
     <span class="header-stat">MCO <b id="hdr-mco">—</b></span>
     <span class="header-stat">%>50SMA <b id="hdr-pct50">—</b></span>
     <span class="header-stat">VIX <b id="hdr-vix">—</b></span>
   </div>
-  <span id="updated">—</span>
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <span id="updated">—</span>
+    <span class="regime-badge NEUTRAL" id="regime-badge">NEUTRAL</span>
+    <button id="theme-toggle" onclick="toggleTheme()">☀ Light</button>
+  </div>
 </div>
 
 <!-- TABS -->
