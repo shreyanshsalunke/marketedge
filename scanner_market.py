@@ -545,6 +545,80 @@ def save_sector_cache(s: dict):
     Path(CFG["sector_cache"]).write_text(
         json.dumps({"ts":datetime.now().isoformat(),"s":s}, indent=2))
 
+def fetch_yf_fundamentals(ticker: str) -> dict:
+    """Fetch quarterly + annual fundamentals from yfinance as primary/fallback source."""
+    result = {
+        "mrq_eps_growth": None, "mrq_rev_growth": None,
+        "eps_positive": False, "mrq_eps": None,
+        "annual_eps_stable": False, "annual_eps_growth_3y": None,
+        "q_data_available": False, "a_data_available": False,
+        "short_float": None, "inst_own": 0,
+        "name": ticker, "sector": "", "industry": "", "mkt_cap": 0,
+        "eps_growth": 0, "rev_growth": 0,
+    }
+    try:
+        tk = yf.Ticker(ticker)
+        info = tk.info or {}
+
+        # Basic info
+        result["name"]       = info.get("shortName", ticker)
+        result["sector"]     = info.get("sector", "")
+        result["industry"]   = info.get("industry", "")
+        result["mkt_cap"]    = (info.get("marketCap", 0) or 0) / 1e6
+        result["inst_own"]   = round((info.get("heldPercentInstitutions") or 0) * 100, 1)
+        result["short_float"]= round((info.get("shortPercentOfFloat") or 0) * 100, 1)
+        result["eps_growth"] = round((info.get("earningsGrowth") or 0) * 100, 1)
+        result["rev_growth"] = round((info.get("revenueGrowth") or 0) * 100, 1)
+
+        # Quarterly EPS — yfinance quarterly_financials
+        try:
+            qf = tk.quarterly_financials
+            if qf is not None and not qf.empty and "Net Income" in qf.index:
+                ni = qf.loc["Net Income"].dropna()
+                if len(ni) >= 5:
+                    # MRQ vs same Q prior year
+                    mrq = float(ni.iloc[0])
+                    yago = float(ni.iloc[4])
+                    result["mrq_eps"] = mrq
+                    result["eps_positive"] = mrq > 0
+                    if yago != 0:
+                        result["mrq_eps_growth"] = round((mrq - yago) / abs(yago) * 100, 1)
+                    result["q_data_available"] = True
+        except: pass
+
+        # Quarterly Revenue
+        try:
+            qf = tk.quarterly_financials
+            if qf is not None and not qf.empty and "Total Revenue" in qf.index:
+                rev = qf.loc["Total Revenue"].dropna()
+                if len(rev) >= 5:
+                    mrq_rev = float(rev.iloc[0])
+                    yago_rev = float(rev.iloc[4])
+                    if yago_rev > 0:
+                        result["mrq_rev_growth"] = round((mrq_rev - yago_rev) / yago_rev * 100, 1)
+        except: pass
+
+        # Annual EPS stability
+        try:
+            af = tk.financials
+            if af is not None and not af.empty and "Net Income" in af.index:
+                ani = af.loc["Net Income"].dropna()
+                if len(ani) >= 3:
+                    vals = [float(ani.iloc[i]) for i in range(min(4, len(ani)))]
+                    growing = all(vals[i] > vals[i+1] for i in range(len(vals)-1))
+                    result["annual_eps_stable"] = growing
+                    if len(vals) >= 3 and vals[-1] != 0:
+                        cagr = ((vals[0] / abs(vals[-1])) ** (1/(len(vals)-1)) - 1) * 100
+                        result["annual_eps_growth_3y"] = round(cagr, 1)
+                    result["a_data_available"] = True
+        except: pass
+
+    except Exception as e:
+        pass
+
+    return result
+
+
 def enrich_fundamentals(tickers: list[str], cache: dict) -> dict:
     needed = [t for t in tickers if t not in cache]
     if not needed: return cache
@@ -552,24 +626,14 @@ def enrich_fundamentals(tickers: list[str], cache: dict) -> dict:
     out = dict(cache)
     for i, t in enumerate(needed):
         try:
-            info = yf.Ticker(t).info
-            eps_g  = info.get("earningsGrowth", None)
-            rev_g  = info.get("revenueGrowth", None)
-            out[t] = {
-                "name":        info.get("shortName", t),
-                "sector":      info.get("sector",""),
-                "industry":    info.get("industry",""),
-                "mktcap":      info.get("marketCap",0),
-                "eps_growth":  round((eps_g or 0)*100, 1),
-                "rev_growth":  round((rev_g or 0)*100, 1),
-                "pe":          info.get("trailingPE", None),
-                "inst_own":    round((info.get("heldPercentInstitutions") or 0)*100, 1),
-                "short_float": round((info.get("shortPercentOfFloat") or 0)*100, 1),
-            }
-            time.sleep(0.3)
+            # Use yfinance as primary source
+            yf_data = fetch_yf_fundamentals(t)
+            out[t] = yf_data
+            time.sleep(0.2)
         except:
-            out[t] = {"name":t,"sector":"","industry":"","mktcap":0,
-                      "eps_growth":0,"rev_growth":0,"pe":None,"inst_own":0,"short_float":None}
+            out[t] = {"name":t,"sector":"","industry":"","mkt_cap":0,
+                      "eps_growth":0,"rev_growth":0,"pe":None,"inst_own":0,"short_float":None,
+                      "q_data_available":False,"a_data_available":False}
         if i>0 and i%20==0:
             print(f"     … {i}/{len(needed)}")
             save_sector_cache(out)
@@ -931,23 +995,32 @@ def canslim_ok(ticker, rs_pctile, cache) -> bool:
     q_avail = si.get("q_data_available", False)
     a_avail = si.get("a_data_available", False)
 
-    # C criteria — quarterly precision
+    # Get best available EPS and revenue growth
+    eps_g = 0
+    rev_g = 0
+    has_any_data = False
+
     if q_avail:
-        if not si.get("eps_positive", True): return False
         eps_g = si.get("mrq_eps_growth") or 0
         rev_g = si.get("mrq_rev_growth") or 0
+        has_any_data = True
+        if not si.get("eps_positive", True): return False
+    
+    # Fallback to annual/TTM if quarterly missing or zero
+    if not has_any_data or eps_g == 0:
+        eps_g = si.get("eps_growth", 0) or 0
+        rev_g = si.get("rev_growth", 0) or rev_g
+        has_any_data = bool(eps_g or rev_g)
+
+    # Only apply growth filter if we actually have data
+    if has_any_data:
         if eps_g < 20: return False
         if rev_g < 15: return False
-    else:
-        # Fallback TTM
-        if (si.get("eps_growth", 0) or 0) < 20: return False
-        if (si.get("rev_growth", 0) or 0) < 15: return False
 
     # A criteria — annual stability check
     if a_avail:
         stable = si.get("annual_eps_stable", False)
         cagr   = si.get("annual_eps_growth_3y") or 0
-        # Must have either 3 consecutive growing years OR 3yr CAGR ≥15%
         if not stable and cagr < 15: return False
 
     return True
@@ -2095,7 +2168,7 @@ def scan_canslim(ticker, daily, rs_pctile, cache) -> list[dict]:
     buyback    = si.get("buyback_trend", False)
     float_cat  = si.get("float_category", "large")  # small/mid/large
     inst       = si.get("inst_own", 0) or 0
-    mktcap     = si.get("mktcap", 0) or 0
+    mktcap     = si.get("mkt_cap", 0) or 0
 
     if q_avail and not eps_pos: return []
 
