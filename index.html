@@ -210,7 +210,8 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 .scard-pivot-bar{height:2px;background:var(--bg4);border-radius:1px;margin-top:8px;overflow:hidden;}
 .scard-pivot-fill{height:100%;border-radius:1px;}
 .scard-hover{display:none;position:absolute;left:0;right:0;top:100%;z-index:50;background:var(--bg2);border:1px solid var(--border2);border-radius:0 0 6px 6px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:10px 14px 12px;border-top:1px solid var(--border);}
-.scard:hover .scard-hover{display:block;}
+.scard.tapped .scard-hover{display:block!important;}
+.scard.tapped .scard-hover{display:block!important;}
 .hover-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px;}
 .hover-item{background:var(--bg3);border-radius:3px;padding:5px 7px;}
 .hover-label{font-size:13px;color:var(--text3);margin-bottom:3px;font-family:var(--font-mono);}
@@ -493,7 +494,7 @@ body.light-mode .hover-meta{color:#52647a}
 .theme-header{padding:14px 16px;border-bottom:1px solid var(--border)}
 .theme-name{font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--text);margin-bottom:5px}
 .theme-score{font-family:var(--font-mono);font-size:22px;font-weight:700}
-.theme-meta{font-family:var(--font-mono);font-size:11px;color:var(--text3);margin-top:4px;line-height:1.4}
+.theme-meta{font-family:var(--font-mono);font-size:10px;color:var(--text3);margin-top:4px;line-height:1.4;word-break:break-word}
 .theme-top3{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
 .theme-ticker-pill{font-family:var(--font-mono);font-size:9px;padding:2px 7px;border-radius:3px;background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
 .theme-stocks{display:none;padding:12px 16px;border-top:1px solid var(--border)}
@@ -506,8 +507,11 @@ body.light-mode .hover-meta{color:#52647a}
   .theme-stock-tier{font-size:7px}
   .theme-stock-rs{font-size:9px;width:auto}
   .theme-stock-score{font-size:11px}
-  .theme-name{font-size:14px}
-  .theme-score{font-size:16px}
+  .theme-name{font-size:13px!important}
+  .theme-score{font-size:15px!important}
+  .theme-meta{font-size:9px!important}
+  #theme-grid{grid-template-columns:1fr 1fr!important;gap:8px}
+  .theme-top3{display:none}
 }
 .theme-stock-ticker{font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--text);width:55px;flex-shrink:0}
 .theme-stock-tier{font-size:8px;font-weight:600;padding:1px 5px;border-radius:2px;flex-shrink:0}
@@ -1110,6 +1114,8 @@ function renderScreenerGrid(){
             <span class="scard-rank" style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">#${idx+1}</span>
             <span class="scard-ticker">${s.ticker}</span>
             <button class="star-btn${isSaved(s.ticker)?' saved':''}" data-ticker="${s.ticker}" onclick="event.stopPropagation();toggleWatchlist('${s.ticker}')">${isSaved(s.ticker)?'★':'☆'}</button>
+          <button class="expand-arrow" onclick="event.stopPropagation();toggleCardExpand('${s.ticker}',this)" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;padding:0 2px;line-height:1">▼</button>
+          <button onclick="openTV('${s.ticker}',event)" style="background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);color:#58a6ff;border-radius:3px;font-size:9px;font-family:var(--font-mono);padding:2px 7px;cursor:pointer;white-space:nowrap">TV</button>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
             <span class="scard-score" style="color:${s.score>=80?'#3fb950':s.score>=65?'#58a6ff':'#d29922'}">${s.score.toFixed(1)}</span>
@@ -1569,30 +1575,28 @@ function filterBySearch(val){
 }
 
 
-// ── CARD CLICK → TRADINGVIEW ─────────────────────────────────────────────────
-document.addEventListener('click', function(e){
-  const card = e.target.closest('.scard');
+// ── CARD EXPAND / TV BUTTON ──────────────────────────────────────────────────
+function toggleCardExpand(ticker, el){
+  const card = el.closest('.scard');
   if(!card) return;
-  if(e.target.closest('a')) return;
-  if(e.target.closest('button')) return;
-  const ticker = card.dataset.ticker;
-  if(!ticker) return;
-
-  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-  if(isTouch){
-    // Touch device: first tap expands details, second tap opens TradingView
-    if(!card.classList.contains('tapped')){
-      e.preventDefault();
-      e.stopPropagation();
-      document.querySelectorAll('.scard.tapped').forEach(c => c.classList.remove('tapped'));
-      card.classList.add('tapped');
-    } else {
-      window.open('https://www.tradingview.com/chart/?symbol=' + ticker, '_blank');
-    }
+  const isOpen = card.classList.contains('tapped');
+  document.querySelectorAll('.scard.tapped').forEach(c => {
+    c.classList.remove('tapped');
+    const arr = c.querySelector('.expand-arrow');
+    if(arr) arr.textContent = '▼';
+  });
+  if(!isOpen){
+    card.classList.add('tapped');
+    el.textContent = '▲';
   } else {
-    window.open('https://www.tradingview.com/chart/?symbol=' + ticker, '_blank');
+    el.textContent = '▼';
   }
-}, true);
+}
+
+function openTV(ticker, e){
+  e.stopPropagation();
+  window.open('https://www.tradingview.com/chart/?symbol=' + ticker, '_blank');
+}
 
 
 // ── SORT ──────────────────────────────────────────────────────────────────────
@@ -1650,12 +1654,12 @@ function renderThematic(){
     return `<div class="theme-card" id="theme-${ti}" onclick="toggleThemeCard(${ti})">
       <div class="theme-header">
         <div class="theme-name">${theme.name}</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:4px;gap:8px;flex-wrap:wrap">
           <div style="display:flex;align-items:baseline;gap:6px">
             <span class="theme-score" style="color:${scoreCol}">${score.toFixed(1)}</span>
             ${theme.score_delta!=null?`<span style="font-family:var(--font-mono);font-size:11px;color:${theme.score_delta>0?'#3fb950':theme.score_delta<0?'#f85149':'#8b949e'}">${theme.score_delta>0?'▲'+theme.score_delta.toFixed(1):theme.score_delta<0?'▼'+Math.abs(theme.score_delta).toFixed(1):'—'}</span>`:''}
           </div>
-          <span class="theme-meta">${theme.leading} leading · ${theme.emerging} emerging</span>
+          <span class="theme-meta">${theme.leading} leading<br>${theme.emerging} emerging</span>
         </div>
         <div class="theme-score-bar"><div class="theme-score-fill" style="width:${Math.min(100,score)}%;background:${scoreCol}"></div></div>
         <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
