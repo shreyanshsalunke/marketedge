@@ -2294,135 +2294,118 @@ def _atr14(daily: pd.DataFrame) -> float:
 def scan_swing_unified(ticker, daily, rs_pctile, cache, spy=None) -> dict | None:
     """
     Unified swing scan — VCP, High Tight Flag, Tight Base.
-    All five criteria must pass:
-      1. Liquidity      : avg daily vol 20d >= 500k shares
-      2. Stage 2 trend  : price > 50 > 150 > 200 SMA, 200 rising, within 25% of 52w high
-      3. RS strength    : RS line within 5% of 3-month high
-      4. Volatility     : 20d ADR >= 3.5%
-      5. VCP tightness  : std dev last 10d <= 2.5% of price OR ATR at 30d low
-                          + volume dry-up (3d avg <= 50% of 50d avg)
-                          + price within 3% of 10d or 20d EMA
+    Criteria: Stage 2 + RS strength + ADR 3.5%+ + VCP tightness
     """
-    if not basic_ok(daily): return None
-    close = daily["Close"]; price = float(close.iloc[-1])
-    if len(daily) < 200: return None
+    try:
+        if not basic_ok(daily): return None
+        close = daily["Close"]; price = float(close.iloc[-1])
+        if len(daily) < 200: return None
 
-    # ── 1. LIQUIDITY ──────────────────────────────────────────────────────────
-    avg_vol_20 = float(daily["Volume"].tail(20).mean())
-    if avg_vol_20 < 500_000: return None
+        # ── 1. LIQUIDITY ──────────────────────────────────────────────────────
+        avg_vol_20 = float(daily["Volume"].tail(20).mean())
+        if avg_vol_20 < 500_000: return None
 
-    # ── 2. STAGE 2 TREND TEMPLATE ─────────────────────────────────────────────
-    s50  = float(sma(close, 50).iloc[-1])
-    s150 = float(sma(close, 150).iloc[-1])
-    s200_series = sma(close, 200)
-    s200 = float(s200_series.iloc[-1])
-    s200_20d = float(s200_series.iloc[-21]) if len(s200_series) >= 21 else s200
+        # ── 2. STAGE 2 TREND TEMPLATE ─────────────────────────────────────────
+        s50  = float(sma(close, 50).iloc[-1])
+        s150 = float(sma(close, 150).iloc[-1])
+        s200_series = sma(close, 200)
+        s200 = float(s200_series.iloc[-1])
+        s200_20d = float(s200_series.iloc[-21]) if len(s200_series) >= 21 else s200 * 0.999
 
-    if not (price > s50 > s150 > s200): return None       # MA stack
-    if s200 <= s200_20d * 0.999: return None               # 200 SMA must be rising
-    high52 = float(daily["High"].rolling(252, min_periods=100).max().iloc[-1])
-    from_high = (high52 - price) / high52 * 100
-    if from_high > 25: return None                         # within 25% of 52w high
+        if not (price > s50 > s150 > s200): return None
+        if s200 <= s200_20d * 0.999: return None
+        high52 = float(daily["High"].rolling(252, min_periods=100).max().iloc[-1])
+        from_high = (high52 - price) / high52 * 100
+        if from_high > 25: return None
 
-    # ── 3. RS LINE STRENGTH ───────────────────────────────────────────────────
-    if spy is not None and len(spy) >= 60:
-        try:
-            spy_close = spy["Close"].reindex(close.index, method="ffill")
-            rs_line = close / spy_close
-            rs_3m_high = float(rs_line.tail(63).max())
-            rs_current = float(rs_line.iloc[-1])
-            rs_near_high = rs_current >= rs_3m_high * 0.95   # within 5% of 3m high
-            if not rs_near_high: return None
-        except: pass
+        # ── 3. RS LINE STRENGTH ───────────────────────────────────────────────
+        if spy is not None and len(spy) >= 63:
+            try:
+                spy_close = spy["Close"].reindex(close.index, method="ffill")
+                rs_line = close / spy_close
+                rs_3m_high = float(rs_line.tail(63).max())
+                rs_current = float(rs_line.iloc[-1])
+                if rs_current < rs_3m_high * 0.95: return None
+            except: pass
 
-    # ── 4. HIGH VOLATILITY CHARACTER (ADR >= 3.5%) ────────────────────────────
-    adr = float(
-        ((daily["High"] - daily["Low"]) / daily["Low"] * 100)
-        .tail(20).mean()
-    )
-    if adr < 3.5: return None
+        # ── 4. HIGH VOLATILITY CHARACTER (ADR >= 3.5%) ────────────────────────
+        adr = float(
+            ((daily["High"] - daily["Low"]) / daily["Low"] * 100).tail(20).mean()
+        )
+        if adr < 3.5: return None
 
-    # ── 5. VCP TIGHTNESS / FLAG / COILED SPRING ───────────────────────────────
-    last10_close = close.tail(10)
-    std_10d = float(last10_close.std())
-    std_pct = std_10d / price * 100
+        # ── 5. VCP TIGHTNESS ──────────────────────────────────────────────────
+        last10_close = close.tail(10)
+        std_pct = float(last10_close.std()) / price * 100
 
-    # ATR at 30-day low check
-    atr_now = _atr14(daily)
-    atr_30d_low = float(
-        pd.Series([_atr14(daily.iloc[:i]) for i in range(len(daily)-30, len(daily))])
-        .min()
-    ) if len(daily) >= 44 else atr_now
+        # ATR tightness — use simple ATR comparison, not looped calculation
+        h = daily["High"]; l = daily["Low"]; c = daily["Close"]
+        prev_c = c.shift(1)
+        tr = pd.concat([h-l, (h-prev_c).abs(), (l-prev_c).abs()], axis=1).max(axis=1)
+        atr_series = tr.rolling(14).mean()
+        atr_now = float(atr_series.iloc[-1])
+        atr_30d_low = float(atr_series.tail(30).min())
+        atr_tight = atr_now <= atr_30d_low * 1.1
 
-    tight_price = std_pct <= 2.5 or atr_now <= atr_30d_low * 1.05
+        tight_price = std_pct <= 2.5 or atr_tight
 
-    # Volume dry-up
-    vol_3d = float(daily["Volume"].tail(3).mean())
-    vol_50d = float(daily["Volume"].tail(50).mean())
-    vol_dryup = vol_3d <= vol_50d * 0.50
+        # Volume dry-up
+        vol_3d = float(daily["Volume"].tail(3).mean())
+        vol_50d = float(daily["Volume"].tail(50).mean())
+        vol_ratio = vol_3d / max(vol_50d, 1)
+        vol_dryup = vol_ratio <= 0.50
 
-    # Launchpad — within 3% of 10d or 20d EMA
-    e10 = float(ema(close, 10).iloc[-1])
-    e20 = float(ema(close, 20).iloc[-1])
-    near_ema = (abs(price - e10) / e10 * 100 <= 3) or (abs(price - e20) / e20 * 100 <= 3)
+        # Launchpad — within 3% of 10d or 20d EMA
+        e10 = float(ema(close, 10).iloc[-1])
+        e20 = float(ema(close, 20).iloc[-1])
+        dist_e10 = abs(price - e10) / e10 * 100
+        dist_e20 = abs(price - e20) / e20 * 100
+        near_ema = dist_e10 <= 3 or dist_e20 <= 3
 
-    if not (tight_price and vol_dryup and near_ema): return None
+        if not tight_price: return None
+        if not vol_dryup: return None
+        if not near_ema: return None
 
-    # ── SCORING ───────────────────────────────────────────────────────────────
-    score = 0
-    tags = []
+        # ── SCORING ───────────────────────────────────────────────────────────
+        score = 0
+        tags = []
 
-    # RS component (0-30)
-    score += min(30, rs_pctile * 0.3)
+        score += min(30, rs_pctile * 0.3)
+        score += max(0, 20 - from_high * 0.8)
+        tags.append(f"From high {from_high:.1f}%")
+        score += max(0, 20 - vol_ratio * 20)
+        tags.append(f"Vol {vol_ratio:.0%} of avg")
 
-    # Proximity to 52w high (0-20) — closer = better setup
-    score += max(0, 20 - from_high * 0.8)
-    tags.append(f"From high {from_high:.1f}%")
+        if atr_tight:
+            score += 15; tags.append("ATR at 30d low")
+        elif std_pct <= 1.5:
+            score += 15; tags.append(f"Tight {std_pct:.1f}%")
+        elif std_pct <= 2.5:
+            score += 10; tags.append(f"Tight {std_pct:.1f}%")
 
-    # Volume dry-up quality (0-20)
-    vol_ratio = vol_3d / max(vol_50d, 1)
-    score += max(0, 20 - vol_ratio * 20)
-    tags.append(f"Vol {vol_ratio:.0%} of avg")
+        score += min(10, (adr - 3.5) * 3)
+        tags.append(f"ADR {adr:.1f}%")
+        score += max(0, 5 - min(dist_e10, dist_e20))
+        score = round(min(score, 100), 1)
 
-    # Tightness (0-15)
-    if atr_now <= atr_30d_low * 1.05:
-        score += 15; tags.append("ATR at 30d low")
-    elif std_pct <= 1.5:
-        score += 15; tags.append(f"Tight {std_pct:.1f}%")
-    elif std_pct <= 2.5:
-        score += 10; tags.append(f"Tight {std_pct:.1f}%")
+        if std_pct <= 1.5 and vol_ratio <= 0.3:
+            strategy = "VCP"
+        elif from_high <= 10 and vol_ratio <= 0.35:
+            strategy = "FLAG"
+        else:
+            strategy = "BASE"
+        tags.insert(0, strategy)
 
-    # ADR quality (0-10)
-    score += min(10, (adr - 3.5) * 3)
-    tags.append(f"ADR {adr:.1f}%")
+        status = "READY" if score >= 72 else "GOOD" if score >= 58 else "DEVELOPING"
 
-    # EMA position (0-5)
-    dist_e10 = abs(price - e10) / e10 * 100
-    score += max(0, 5 - dist_e10)
-
-    score = round(min(score, 100), 1)
-
-    # Classify setup type
-    if std_pct <= 1.5 and vol_ratio <= 0.3:
-        strategy = "VCP"
-        tags.insert(0, "VCP")
-    elif from_high <= 10 and vol_ratio <= 0.35:
-        strategy = "FLAG"
-        tags.insert(0, "Flag")
-    else:
-        strategy = "BASE"
-        tags.insert(0, "Tight Base")
-
-    status = "READY" if score >= 72 and vol_dryup else "GOOD" if score >= 58 else "DEVELOPING"
-
-    si = cache.get(ticker, {})
-    return base_result(ticker, daily, rs_pctile, score, status, tags,
-        {"strategy": strategy, "methodology": "Swing",
-         "adr": round(adr, 1), "std_pct": round(std_pct, 1),
-         "vol_ratio": round(vol_ratio, 2), "dist_e10": round(dist_e10, 1),
-         "from_high_pct": round(from_high, 1),
-         "pivot": round(high52, 2)},
-        "Swing", cache, spy=_SPY)
+        return base_result(ticker, daily, rs_pctile, score, status, tags,
+            {"strategy": strategy, "methodology": "Swing",
+             "adr": round(adr, 1), "std_pct": round(std_pct, 1),
+             "vol_ratio": round(vol_ratio, 2), "dist_e10": round(dist_e10, 1),
+             "from_high_pct": round(from_high, 1), "pivot": round(high52, 2)},
+            "Swing", cache, spy=_SPY)
+    except:
+        return None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
