@@ -309,7 +309,26 @@ def get_us_tickers(key: str, test_mode: bool) -> list[str]:
             time.sleep(0.12)
         except Exception as e:
             print(f"     ! {e}"); break
-    print(f"  ✓  {len(tickers)} US tickers from Polygon")
+
+    # Always include major liquid stocks regardless of Polygon pagination
+    MUST_INCLUDE = [
+        "NVDA","AMD","AVGO","MSFT","AAPL","GOOGL","META","AMZN","TSLA","NFLX",
+        "CRM","ADBE","NOW","PANW","CRWD","DDOG","NET","ZS","PLTR","AXON",
+        "MRVL","MU","AMAT","LRCX","KLAC","ONTO","ALAB","ARM","SMCI","TSM",
+        "LLY","UNH","ABBV","REGN","VRTX","ISRG","DXCM","MRNA","IDXX","EW",
+        "JPM","GS","V","MA","COIN","SOFI","SQ","AFRM","UPST","NU",
+        "FSLR","ENPH","CEG","VST","NRG","CCJ","OKLO","SMR","NNE","BWXT",
+        "RKLB","ASTS","KTOS","CACI","SAIC","HII","LHX","TDG","GD","RTX",
+        "CELH","WING","CAVA","BROS","LULU","ONON","DECK","DUOL","RDDT","SPOT",
+        "MELI","BKNG","UBER","ABNB","APP","TTD","HUBS","PAYC","BILL","FOUR",
+        "SNOW","MDB","GTLB","ESTC","CFLT","BRZE","NCNO","IOT","SAMSARA","ZI",
+        "GE","CAT","DE","EMR","ETN","HUBB","POWL","PWR","GNRC","ROK",
+        "FCX","SCCO","MP","ALB","SQM","LTHM","SGML","LAC","PLL","NEM",
+        "OXY","DVN","FANG","CTRA","SM","MTDR","CPE","XOM","CVX","PXD",
+        "HOOD","MSTR","MARA","RIOT","CLSK","IREN","CORZ","APLD","HUT","CIFR",
+    ]
+    tickers = list(dict.fromkeys(MUST_INCLUDE + tickers))
+    print(f"  ✓  {len(tickers)} US tickers (Polygon + mandatory large caps)")
     return tickers
 
 def get_ca_tickers(test_mode: bool) -> list[str]:
@@ -640,6 +659,101 @@ def enrich_fundamentals(tickers: list[str], cache: dict) -> dict:
     save_sector_cache(out)
     return out
 
+
+# ─── SEC EDGAR FUNDAMENTALS (free, official, complete) ───────────────────────
+_EDGAR_CIK_MAP = {}  # cache ticker → CIK
+
+def edgar_load_cik_map():
+    """Load SEC EDGAR ticker→CIK map once per session."""
+    global _EDGAR_CIK_MAP
+    if _EDGAR_CIK_MAP: return
+    try:
+        r = requests.get(
+            "https://www.sec.gov/files/company_tickers.json",
+            headers={"User-Agent": "Stratify scanner@stratify.app"},
+            timeout=15
+        )
+        if r.ok:
+            for item in r.json().values():
+                _EDGAR_CIK_MAP[item["ticker"].upper()] = str(item["cik_str"]).zfill(10)
+            print(f"  ✓  SEC EDGAR CIK map loaded ({len(_EDGAR_CIK_MAP)} tickers)")
+    except Exception as e:
+        print(f"  ! EDGAR CIK load failed: {e}")
+
+def fetch_edgar_fundamentals(ticker: str) -> dict:
+    """
+    Fetch quarterly EPS and revenue from SEC EDGAR XBRL data.
+    Free, no API key, official SEC filings.
+    """
+    result = {
+        "mrq_eps_growth": None, "mrq_rev_growth": None,
+        "eps_positive": None, "annual_eps_stable": False,
+        "annual_eps_growth_3y": None, "q_data_available": False,
+        "a_data_available": False,
+    }
+    cik = _EDGAR_CIK_MAP.get(ticker.upper())
+    if not cik: return result
+
+    try:
+        url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+        r = requests.get(url, headers={"User-Agent": "Stratify scanner@stratify.app"}, timeout=20)
+        if not r.ok: return result
+        facts = r.json().get("facts", {}).get("us-gaap", {})
+
+        def get_quarterly(concept):
+            data = facts.get(concept, {})
+            for unit_key in data.get("units", {}):
+                items = data["units"][unit_key]
+                # Filter 10-Q and 10-K, sort by end date
+                quarterly = sorted(
+                    [x for x in items if x.get("form") in ("10-Q","10-K") and x.get("val") is not None],
+                    key=lambda x: x.get("end",""), reverse=True
+                )
+                # Deduplicate by end date
+                seen = set()
+                deduped = []
+                for q in quarterly:
+                    if q["end"] not in seen:
+                        seen.add(q["end"])
+                        deduped.append(q["val"])
+                return deduped
+            return []
+
+        # EPS
+        eps = get_quarterly("EarningsPerShareDiluted")
+        if not eps:
+            eps = get_quarterly("EarningsPerShareBasic")
+        
+        if len(eps) >= 5:
+            mrq, yago = eps[0], eps[4]
+            result["mrq_eps"] = mrq
+            result["eps_positive"] = mrq > 0
+            if yago != 0:
+                result["mrq_eps_growth"] = round((mrq - yago) / abs(yago) * 100, 1)
+            result["q_data_available"] = True
+            # Annual stability (last 4 annual periods)
+            annual_eps = [eps[i*4] for i in range(min(4, len(eps)//4))]
+            if len(annual_eps) >= 3:
+                result["annual_eps_stable"] = all(annual_eps[i] > annual_eps[i+1] for i in range(len(annual_eps)-1))
+                if annual_eps[-1] != 0:
+                    cagr = ((annual_eps[0]/abs(annual_eps[-1]))**(1/(len(annual_eps)-1))-1)*100
+                    result["annual_eps_growth_3y"] = round(cagr, 1)
+                result["a_data_available"] = True
+
+        # Revenue
+        rev = get_quarterly("Revenues")
+        if not rev: rev = get_quarterly("RevenueFromContractWithCustomerExcludingAssessedTax")
+        if not rev: rev = get_quarterly("SalesRevenueNet")
+
+        if len(rev) >= 5 and rev[4] > 0:
+            result["mrq_rev_growth"] = round((rev[0] - rev[4]) / rev[4] * 100, 1)
+
+    except Exception as e:
+        pass
+
+    return result
+
+
 # ─── FMP COMPREHENSIVE FUNDAMENTALS ──────────────────────────────────────────
 def fetch_fmp_full(ticker: str, fmp_key: str) -> dict:
     """
@@ -877,9 +991,14 @@ def enrich_with_fmp(hit_tickers: list[str], fmp_key: str, cache: dict) -> dict:
     for i, t in enumerate(fmp_needed):
         fmp = fetch_fmp_full(t, fmp_key)
         si = out.get(t, {})
+        # If FMP missing quarterly data, try SEC EDGAR
+        if not fmp.get("q_data_available") and _EDGAR_CIK_MAP:
+            edgar = fetch_edgar_fundamentals(t)
+            if edgar.get("q_data_available"):
+                fmp.update({k:v for k,v in edgar.items() if v is not None})
         si.update({**fmp, "_fmp_fetched": now.isoformat()})
         out[t] = si
-        time.sleep(0.6)   # ~100 tickers/min, well within free tier
+        time.sleep(0.6)
         if i > 0 and i % 20 == 0:
             print(f"     … {i}/{len(fmp_needed)}")
             save_sector_cache(out)
@@ -2315,6 +2434,8 @@ def run(test_mode=False):
     print("  US + Canadian Markets | All Strategies")
     print("═"*60)
     cfg = load_config()
+    # Load SEC EDGAR CIK map for fundamental fallback
+    edgar_load_cik_map()
     KEY = cfg.get("POLYGON_API_KEY","")
     us_tickers  = get_us_tickers(KEY, test_mode)
     ca_tickers  = []   # US only
