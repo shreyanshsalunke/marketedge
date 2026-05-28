@@ -38,7 +38,7 @@ CFG = {
     "chart_bars":      180,         # OHLCV bars sent to frontend (180 daily = ~6M)
     "output_file":     "market_data.json",
     "batch_size":      400,
-    "sector_cache":    str(Path.home() / ".stratify_sectors.json"),
+    "sector_cache":    "fundamentals_cache.json",
 }
 
 # Index & sector tickers
@@ -654,6 +654,25 @@ def enrich_fundamentals(tickers: list[str], cache: dict) -> dict:
     MEGA_CAPS = ["NVDA","AMD","MSFT","AAPL","META","AMZN","GOOGL","AVGO","TSLA","LLY",
                  "V","MA","JPM","UNH","NFLX","COST","AMD","CRM","ADBE","NOW"]
     needed = list(dict.fromkeys(MEGA_CAPS + needed))
+    
+    # Force re-fetch for any stock that reported earnings in last 3 days
+    try:
+        from datetime import timedelta
+        cutoff = datetime.now() - timedelta(days=3)
+        for t in list(cache.keys()):
+            fetched = cache[t].get("_fmp_fetched") or cache[t].get("_fetched")
+            if fetched:
+                fetch_date = datetime.fromisoformat(fetched)
+                # Check if earnings were reported after last fetch
+                earnings_date = cache[t].get("next_earnings_date")
+                if earnings_date:
+                    try:
+                        ed = datetime.fromisoformat(str(earnings_date))
+                        if cutoff <= ed <= datetime.now() and t not in needed:
+                            needed.append(t)
+                    except: pass
+    except: pass
+    
     print(f"  ↓  Fetching fundamentals for {len(needed)} scan hits…")
     out = dict(cache)
     for i, t in enumerate(needed):
@@ -2481,14 +2500,20 @@ def scan_core(ticker, daily, rs_pctile, cache) -> list[dict]:
     if prof_score == 0 and eps_growth >= 20:
         prof_score = 15
         tags.append(f"EPS +{eps_growth:.0f}%")
+    elif prof_score == 0 and eps_growth >= 10:
+        prof_score = 8
+        tags.append(f"EPS +{eps_growth:.0f}%")
 
     # ── GROWTH SCORE (0-30 pts) ───────────────────────────────────────────────
     growth_score = 0
     if eps_cagr_5y >= 20:  growth_score += 15; tags.append(f"EPS CAGR {eps_cagr_5y:.0f}%")
     elif eps_cagr_5y >= 12: growth_score += 10; tags.append(f"EPS CAGR {eps_cagr_5y:.0f}%")
+    elif eps_cagr_5y >= 8:  growth_score += 6; tags.append(f"EPS CAGR {eps_cagr_5y:.0f}%")
     elif eps_growth >= 20:  growth_score += 8; tags.append(f"EPS +{eps_growth:.0f}%")
+    elif eps_growth >= 10:  growth_score += 5; tags.append(f"EPS +{eps_growth:.0f}%")
     if rev_growth >= 15:    growth_score += 10; tags.append(f"Rev +{rev_growth:.0f}%")
     elif rev_growth >= 8:   growth_score += 6
+    elif rev_growth >= 4:   growth_score += 3
     if fcf_positive:        growth_score += 5; tags.append("FCF+")
 
     # ── BALANCE SHEET SCORE (0-15 pts) ────────────────────────────────────────
@@ -2533,7 +2558,7 @@ def scan_core(ticker, daily, rs_pctile, cache) -> list[dict]:
 
     # Minimum threshold — must have some profitability AND growth data
     if prof_score == 0 and growth_score < 8: return []
-    if score < 45: return []
+    if score < 35: return []
 
     status = "READY" if (score >= 70 and near_200) else "GOOD" if score >= 60 else "DEVELOPING"
 

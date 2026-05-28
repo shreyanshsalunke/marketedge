@@ -2,7 +2,6 @@ name: Stratify Daily Scan
 
 on:
   schedule:
-    # 11:00 PM UTC = 6:00 PM ET (works for both EST and EDT)
     - cron: '0 23 * * 1-5'
   workflow_dispatch:
 
@@ -45,10 +44,10 @@ jobs:
           GITHUB_REPO: ${{ secrets.GH_REPO }}
         run: python3 scanner_market.py
 
-      - name: Commit market_data.json
+      - name: Commit scan results
         run: |
           git config user.name "Stratify Bot"
           git config user.email "bot@stratify.app"
-          git add market_data.json
+          git add market_data.json fundamentals_cache.json
           git diff --staged --quiet || git commit -m "Scan $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push
