@@ -1480,7 +1480,10 @@ async function init(){
   const scanDate=new Date(DATA.scanned_at);
   const ageHours=(Date.now()-scanDate)/3600000;
   const updEl=document.getElementById('updated');
-  updEl.textContent='Updated: '+scanDate.toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  // Show in ET and local time
+  const etTime = scanDate.toLocaleString('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const localTime = scanDate.toLocaleString('en-CA',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  updEl.textContent='Scanned: '+etTime+' ET · '+localTime+' Local';
   updEl.style.color=ageHours>24?'var(--bear)':ageHours>12?'var(--neut)':'var(--text3)';
   if(ageHours>24) updEl.title='Data is stale — scanner may not have run';
 
@@ -1650,6 +1653,9 @@ function renderThematic(){
         <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">${priceStr}</span>
         <span class="theme-stock-rs">RS ${s.rs}</span>
         <span class="theme-stock-score" style="color:${scoreCol2}">${s.score.toFixed(0)}</span>
+        <button class="star-btn${isSaved(s.ticker)?' saved':''}" data-ticker="${s.ticker}" 
+          onclick="event.stopPropagation();toggleWatchlist('${s.ticker}')" 
+          style="background:none;border:none;cursor:pointer;font-size:13px;color:${isSaved(s.ticker)?'#d29922':'var(--text3)'};padding:0 2px;line-height:1;flex-shrink:0">${isSaved(s.ticker)?'★':'☆'}</button>
       </div>`;
     }).join('');
 
