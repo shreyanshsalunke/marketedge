@@ -816,15 +816,16 @@ function renderIndexes(){
 }
 
 function renderBreadth(){
-  const br=DATA.breadth;
+  const br=DATA.breadth||{};
+  if(!br) return;
 
   // Header stats
-  document.getElementById('hdr-mco').textContent=(br.mcclellan>=0?'+':'')+br.mcclellan.toFixed(1);
-  document.getElementById('hdr-pct50').textContent=br.pct_above_50sma.toFixed(0)+'%';
-  document.getElementById('hdr-vix').textContent=br.vix.toFixed(1);
+  document.getElementById('hdr-mco').textContent=br.mcclellan!=null?(br.mcclellan>=0?'+':'')+br.mcclellan.toFixed(1):'—';
+  document.getElementById('hdr-pct50').textContent=br.pct_above_50sma!=null?br.pct_above_50sma.toFixed(0)+'%':'—';
+  document.getElementById('hdr-vix').textContent=br.vix!=null?br.vix.toFixed(1):'—';
 
   // McClellan Oscillator
-  const mco=br.mcclellan;
+  const mco=br.mcclellan||0;
   const mcoEl=document.getElementById('mco-val');
   mcoEl.textContent=(mco>=0?'+':'')+mco.toFixed(1);
   mcoEl.className='gauge-val '+(mco>50?'pos':mco<-50?'neg':'neut');
@@ -833,7 +834,7 @@ function renderBreadth(){
   document.getElementById('mco-sub').innerHTML=mco>50?'<b>Overbought</b> — consider caution':mco<-50?'<b>Oversold</b> — watch for bounce':'<b>Neutral</b> — breadth mixed';
 
   // % Above 50 SMA
-  const p50=br.pct_above_50sma;
+  const p50=br.pct_above_50sma||0;
   const p50El=document.getElementById('pct50-val');
   p50El.textContent=p50.toFixed(0)+'%';
   p50El.className='gauge-val '+(p50>65?'pos':p50<35?'neg':'neut');
@@ -1481,7 +1482,7 @@ async function init(){
   const ageHours=(Date.now()-scanDate)/3600000;
   const updEl=document.getElementById('updated');
   // Show in ET and local time
-  const localTime = scanDate.toLocaleString('en-CA',{timeZone:'America/Toronto',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const localTime = scanDate.toLocaleString('en-US',{timeZone:'America/Toronto',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
   updEl.textContent='Scanned: '+localTime+' ET';
   updEl.style.color=ageHours>24?'var(--bear)':ageHours>12?'var(--neut)':'var(--text3)';
   if(ageHours>24) updEl.title='Data is stale — scanner may not have run';
