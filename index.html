@@ -198,7 +198,7 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
   color:var(--text3);transition:all .15s;
 }
 .mode-btn.active{background:var(--bg4);color:var(--accent);border:1px solid var(--accent)}
-#screener-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:start}
+#screener-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:start;position:relative}
 @media(max-width:1000px){#screener-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){#screener-grid{grid-template-columns:1fr}}
 
@@ -533,7 +533,7 @@ body.light-mode .hover-meta{color:#52647a}
 @media(max-width:1000px){#theme-grid{grid-template-columns:repeat(2,1fr)!important}}
 
 
-.scard-accent{position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:8px 0 0 8px}
+.scard-accent{position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:9px 0 0 9px}
 .scard.score-hi .scard-accent{background:#3fb950}
 .scard.score-mid .scard-accent{background:#58a6ff}
 .scard.score-lo .scard-accent{background:#d29922}
@@ -930,13 +930,12 @@ function renderSectorMap(){
     const borderCol = pos
       ? `rgb(${greenBright.map(c=>Math.round(c*(0.4+intensity*0.6))).join(',')})`
       : `rgb(${redBright.map(c=>Math.round(c*(0.4+intensity*0.6))).join(',')})`;
-    const pctCol = pos
-      ? `rgb(${greenBright.map(c=>Math.round(c*(0.6+intensity*0.4))).join(',')})`
-      : `rgb(${redBright.map(c=>Math.round(c*(0.6+intensity*0.4))).join(',')})`;
+    const textCol = pos ? '#3fb950' : '#f85149';
+    const nameCol = pos ? 'rgba(63,185,80,.65)' : 'rgba(248,81,73,.65)';
     return`<div class="sector-tile" style="background:${bg};border:1px solid transparent;border-left:4px solid ${borderCol};cursor:pointer" onclick="window.open('https://www.tradingview.com/chart/?symbol=AMEX:${s.sym}','_blank')">
-      <div class="sector-sym" style="color:${pctCol}">${s.sym}</div>
-      <div class="sector-name" style="color:${pctCol}">${s.name}</div>
-      <div class="sector-pct" style="color:${pctCol}">${pct>=0?'+':''}${pct.toFixed(2)}%</div>
+      <div class="sector-sym" style="color:${textCol}">${s.sym}</div>
+      <div class="sector-name" style="color:${nameCol}">${s.name}</div>
+      <div class="sector-pct" style="color:${textCol}">${pct>=0?'+':''}${pct.toFixed(2)}%</div>
     </div>`;
   }).join('');
 }
