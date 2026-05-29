@@ -14,9 +14,9 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0d1117;--bg2:#161b22;--bg3:#1c2128;--bg4:#21262d;
-  --border:#30363d;--border2:#3d444d;
-  --text:#e6edf3;--text2:#cdd9e5;--text3:#8b949e;
+  --bg:#080c10;--bg2:#0d1420;--bg3:#111820;--bg4:#1a2530;
+  --border:#1a2030;--border2:#2a3a50;
+  --text:#e2ecf8;--text2:#a8b8cc;--text3:#4a6080;
   --accent:#58a6ff;--accent2:#79c0ff;
   --bull:#3fb950;--bull2:#2ea043;--bull-bg:rgba(63,185,80,.12);
   --bear:#f85149;--bear2:#da3633;--bear-bg:rgba(248,81,73,.12);
@@ -210,7 +210,7 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 .scard-row2{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
 .scard-pivot-bar{height:2px;background:var(--bg4);border-radius:1px;margin-top:8px;overflow:hidden;}
 .scard-pivot-fill{height:100%;border-radius:1px;}
-.scard-hover{display:none;position:absolute;left:0;right:0;top:100%;z-index:50;background:var(--bg2);border:1px solid var(--border2);border-radius:0 0 6px 6px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:10px 14px 12px;border-top:1px solid var(--border);}
+.scard-hover{display:none;padding:10px 14px 10px 18px;border-top:1px solid var(--border);background:var(--bg2);border-top:1px solid var(--border);}
 .scard.tapped .scard-hover{display:block!important;}
 .scard.tapped .scard-hover{display:block!important;}
 .hover-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px;}
@@ -230,9 +230,9 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 .scard-head{padding:12px 14px 8px}
 .scard-top{display:flex;align-items:center;gap:5px;margin-bottom:2px;flex-wrap:wrap}
 .scard-rank{font-family:var(--font-mono);font-size:10px;color:var(--text3);min-width:20px;flex-shrink:0}
-.scard-ticker{font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--text);letter-spacing:.02em}
+.scard-ticker{font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--text);letter-spacing:.02em;line-height:1}
 .scard-name{font-size:14px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.scard-score{margin-left:auto;font-family:var(--font-mono);font-size:26px;font-weight:700;color:#3fb950}
+.scard-score{font-family:var(--font-mono);font-size:32px;font-weight:700;color:#3fb950;line-height:1}
 .strategy-badge{font-family:var(--font-mono);font-size:11px;font-weight:600;padding:3px 8px;border-radius:3px;letter-spacing:.04em;text-transform:uppercase;border:1px solid;flex-shrink:0;white-space:nowrap}
 .strategy-badge.VCP{background:rgba(14,116,144,.1);color:var(--cyan);border-color:rgba(14,116,144,.3)}
 .strategy-badge.BASE{background:rgba(245,158,11,.1);color:var(--neut);border-color:rgba(245,158,11,.3)}
@@ -414,7 +414,7 @@ body.light-mode .hover-meta{color:#52647a}
   /* Cards */
   .scard-ticker{font-size:20px}
   .scard-score{font-size:24px}
-  .scard-default{padding:14px 16px 12px}
+  .scard-default{padding:14px 14px 10px 18px;flex:1}
   .hover-val{font-size:14px}
   .hover-label{font-size:11px}
   .hover-grid{grid-template-columns:1fr 1fr;gap:6px}
@@ -531,6 +531,15 @@ body.light-mode .hover-meta{color:#52647a}
 @media(max-width:768px){#theme-grid{grid-template-columns:1fr!important}}
 @media(max-width:1000px){#theme-grid{grid-template-columns:repeat(2,1fr)!important}}
 
+
+.scard-accent{position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:8px 0 0 8px}
+.scard.score-hi .scard-accent{background:#3fb950}
+.scard.score-mid .scard-accent{background:#58a6ff}
+.scard.score-lo .scard-accent{background:#d29922}
+.scard-footer{border-top:1px solid var(--bg3);padding:7px 12px 7px 18px;display:flex;align-items:center;gap:8px;background:var(--bg3);margin-top:auto}
+.scard-footer-bar{flex:1;height:3px;background:var(--bg4);border-radius:2px;overflow:hidden}
+.scard-footer-fill{height:100%;border-radius:2px}
+
 </style>
 </head>
 <body>
@@ -544,11 +553,11 @@ body.light-mode .hover-meta{color:#52647a}
   <div class="logo">STRATIFY</div>
   <div class="header-mid">
     <span class="header-stat">MCO <b id="hdr-mco">—</b></span>
-    <span class="header-stat">%>50SMA <b id="hdr-pct50">—</b></span>
+    <span class="header-stat">50SMA <b id="hdr-pct50">—</b></span>
     <span class="header-stat">VIX <b id="hdr-vix">—</b></span>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-    <span id="updated">—</span>
+    <span id="updated" style="font-size:10px">—</span>
     <span class="regime-badge NEUTRAL" id="regime-badge">NEUTRAL</span>
     <button id="theme-toggle" onclick="toggleTheme()">☀ Light</button>
   </div>
@@ -1120,42 +1129,45 @@ function renderScreenerGrid(){
     const epsCls=!s.eps?'':(s.eps<0?'neg':'pos');
     const revCls=!s.rev?'':(s.rev<0?'neg':'pos');
     const pivotCls=fromPivot<=3?'blue':fromPivot<=7?'warn':'neg';
-    return`<div class="scard" data-ticker="${s.ticker}" data-name="${s.name||''}">
+    const scoreCol = s.score>=80?'#3fb950':s.score>=65?'#58a6ff':'#d29922';
+    const scoreCls = s.score>=80?'score-hi':s.score>=65?'score-mid':'score-lo';
+    return`<div class="scard ${scoreCls}" data-ticker="${s.ticker}" data-name="${s.name||''}">
+      <div class="scard-accent"></div>
       <div class="scard-default">
         <div class="scard-row1">
-          <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0">
-            <span class="scard-rank" style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">#${idx+1}</span>
-            <span class="scard-ticker">${s.ticker}</span>
-            <button class="star-btn${isSaved(s.ticker)?' saved':''}" data-ticker="${s.ticker}" onclick="event.stopPropagation();toggleWatchlist('${s.ticker}')">${isSaved(s.ticker)?'★':'☆'}</button>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-            <button onclick="openTV('${s.ticker}',event)" style="background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);color:#58a6ff;border-radius:3px;font-size:9px;font-family:var(--font-mono);padding:2px 8px;cursor:pointer;white-space:nowrap;flex-shrink:0">TV ↗</button>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
-              <span class="scard-score" style="color:${s.score>=80?'#3fb950':s.score>=65?'#58a6ff':'#d29922'}">${s.score.toFixed(1)}</span>
-              ${s.score_delta!=null?`<span style="font-family:var(--font-mono);font-size:11px;color:${s.score_delta>0?'#3fb950':s.score_delta<0?'#f85149':'#8b949e'}">${s.score_delta>0?'▲'+s.score_delta.toFixed(1):s.score_delta<0?'▼'+Math.abs(s.score_delta).toFixed(1):'—'}</span>`:''}
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3)">#${idx+1}</span>
+              <span class="scard-ticker">${s.ticker}</span>
+              <button class="star-btn${isSaved(s.ticker)?' saved':''}" data-ticker="${s.ticker}" onclick="event.stopPropagation();toggleWatchlist('${s.ticker}')">${isSaved(s.ticker)?'★':'☆'}</button>
             </div>
+            <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-top:2px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.sector||s.industry||''}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+            <span class="scard-score" style="color:${scoreCol}">${s.score.toFixed(1)}</span>
+            ${s.score_delta!=null?`<span style="font-family:var(--font-mono);font-size:10px;color:${s.score_delta>0?'#3fb950':s.score_delta<0?'#f85149':'#4a6080'}">${s.score_delta>0?'▲'+s.score_delta.toFixed(1):s.score_delta<0?'▼'+Math.abs(s.score_delta).toFixed(1):'—'}</span>`:''}
           </div>
         </div>
-        <div class="scard-row2">
+        <div class="scard-row2" style="margin-top:10px">
           ${(s.methods||[s.strategy]).map(m=>`<span class="strategy-badge ${m}">${STRAT_LABELS[m]||m}</span>`).join('')}
           <span class="status-badge ${s.status}">${s.status}</span>
           ${earningsFlag(s.ticker)}
-          ${s.base_count>=1&&s.base_count<=2?`<span style="font-family:var(--font-mono);font-size:7px;padding:2px 5px;border-radius:2px;background:rgba(88,166,255,.1);color:#58a6ff;border:1px solid rgba(88,166,255,.25)">${s.base_count===1?'1st':'2nd'} base</span>`:''}
-          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3);margin-left:auto">RS ${s.rs}th</span>
-        </div>
-        <div style="height:3px;background:var(--bg4);border-radius:2px;margin-top:7px;overflow:hidden">
-          <div style="height:100%;width:${Math.min(100,s.score)}%;background:${s.score>=80?'#3fb950':s.score>=65?'#58a6ff':'#d29922'};border-radius:2px"></div>
+          ${s.base_count>=1&&s.base_count<=2?`<span style="font-family:var(--font-mono);font-size:7px;padding:2px 5px;border-radius:2px;background:rgba(88,166,255,.1);color:#58a6ff;border:1px solid rgba(88,166,255,.2)">${s.base_count===1?'1st':'2nd'} base</span>`:''}
+          <span style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-left:auto">RS ${s.rs}th</span>
         </div>
       </div>
       <div class="scard-hover">
         <div class="hover-grid">
           <div class="hover-item"><div class="hover-label">ADR</div><div class="hover-val pos">${s.adr?s.adr+'%':'—'}</div></div>
           <div class="hover-item"><div class="hover-label">Vol ratio</div><div class="hover-val ${(s.vol_ratio||1)<=0.5?'pos':''}">${s.vol_ratio?Math.round(s.vol_ratio*100)+'%':'—'}</div></div>
-          <div class="hover-item"><div class="hover-label">From high</div><div class="hover-val ${pivotCls}">${fromPivot.toFixed(1)}%</div></div>
+          <div class="hover-item"><div class="hover-label">From high</div><div class="hover-val">${fromPivot.toFixed(1)}%</div></div>
           <div class="hover-item"><div class="hover-label">Short float</div><div class="hover-val ${sfWarn?'warn':''}">${s.sf!=null?s.sf+'%':'—'}</div></div>
         </div>
         <div class="hover-meta">${s.sector||''} · $${fmtPrice(s.price)}${earningsFlag(s.ticker)}</div>
-
+      </div>
+      <div class="scard-footer">
+        <div class="scard-footer-bar"><div class="scard-footer-fill" style="width:${Math.min(100,s.score)}%;background:${scoreCol}"></div></div>
+        <button onclick="openTV('${s.ticker}',event)" style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);color:#3a6090;border-radius:3px;font-size:8px;font-family:var(--font-mono);padding:2px 8px;cursor:pointer;white-space:nowrap;flex-shrink:0">TV ↗</button>
       </div>
     </div>`;
   }).join('') || '<div style="color:var(--text3);padding:20px">No setups match this filter.</div>';
