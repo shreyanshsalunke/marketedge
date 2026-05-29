@@ -166,15 +166,16 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);font-si
 /* Sector heatmap */
 #sector-map{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .sector-tile{
-  border-radius:6px;padding:20px 14px;
-  cursor:pointer;transition:transform .15s,box-shadow .15s;
-  border:1px solid transparent;position:relative;overflow:hidden;
+  border-radius:8px;padding:14px 12px 12px;
+  cursor:pointer;transition:all .15s;
+  position:relative;overflow:hidden;
 }
-.sector-tile:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.sector-tile:hover{filter:brightness(1.15);transform:translateY(-1px)}
+.sector-tile:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,0,0,.4);border-color:rgba(255,255,255,.2)!important}
 .sector-emoji{font-size:16px;margin-bottom:4px}
-.sector-sym{font-family:var(--font-display);font-size:15px;font-weight:600;color:#fff;margin-bottom:4px}
-.sector-name{font-size:13px;color:rgba(255,255,255,.65);margin-bottom:8px}
-.sector-pct{font-family:var(--font-mono);font-size:20px;font-weight:700;color:#fff}
+.sector-sym{font-family:var(--font-display);font-size:14px;font-weight:700;margin-bottom:2px}
+.sector-name{font-size:10px;opacity:.55;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;color:rgba(255,255,255,.65);margin-bottom:8px}
+.sector-pct{font-family:var(--font-mono);font-size:20px;font-weight:700}
 
 /* Sector Rotation */
 #sector-rotation{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:20px 22px;}
@@ -559,6 +560,7 @@ body.light-mode .hover-meta{color:#52647a}
   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
     <span id="updated" style="font-size:10px">—</span>
     <span class="regime-badge NEUTRAL" id="regime-badge">NEUTRAL</span>
+    <button id="refresh-btn" onclick="refreshData()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text3);border-radius:4px;font-size:12px;font-family:var(--font-mono);padding:3px 10px;cursor:pointer">↻</button>
     <button id="theme-toggle" onclick="toggleTheme()">☀ Light</button>
   </div>
 </div>
@@ -914,13 +916,27 @@ function sectorColor(pct){
 function renderSectorMap(){
   const tf=ACTIVE_TF;
   const map=document.getElementById('sector-map');
+  if(!map||!DATA.sectors||!DATA.sectors.length) return;
   map.innerHTML=DATA.sectors.map(s=>{
-    const pct=s[tf]||0,col=sectorColor(pct),cls=pctClass(pct);
-    return`<div class="sector-tile" style="background:${col}" title="${s.name}">
-      <div class="sector-emoji">${s.emoji}</div>
-      <div class="sector-sym">${s.sym}</div>
-      <div class="sector-name">${s.name}</div>
-      <div class="sector-pct">${fmt(pct)}</div>
+    const pct=s[tf]||0;
+    const pos=pct>=0;
+    const intensity=Math.min(1,Math.abs(pct)/3);
+    // Vivid color scaling
+    const greenBase = [13,46,26]; const greenBright = [63,185,80];
+    const redBase   = [45,12,12]; const redBright   = [248,81,73];
+    const base = pos ? greenBase : redBase;
+    const bright = pos ? greenBright : redBright;
+    const bg = `rgb(${base.map((b,i)=>Math.round(b+(bright[i]-b)*Math.min(intensity*1.5,1))).join(',')})`;
+    const borderCol = pos
+      ? `rgb(${greenBright.map(c=>Math.round(c*(0.4+intensity*0.6))).join(',')})`
+      : `rgb(${redBright.map(c=>Math.round(c*(0.4+intensity*0.6))).join(',')})`;
+    const pctCol = pos
+      ? `rgb(${greenBright.map(c=>Math.round(c*(0.6+intensity*0.4))).join(',')})`
+      : `rgb(${redBright.map(c=>Math.round(c*(0.6+intensity*0.4))).join(',')})`;
+    return`<div class="sector-tile" style="background:${bg};border:1px solid transparent;border-left:4px solid ${borderCol};cursor:pointer" onclick="window.open('https://www.tradingview.com/chart/?symbol=AMEX:${s.sym}','_blank')">
+      <div class="sector-sym" style="color:${pctCol}">${s.sym}</div>
+      <div class="sector-name" style="color:${pctCol}">${s.name}</div>
+      <div class="sector-pct" style="color:${pctCol}">${pct>=0?'+':''}${pct.toFixed(2)}%</div>
     </div>`;
   }).join('');
 }
@@ -929,29 +945,28 @@ function renderSectorRotation(){
   const el = document.getElementById('sector-rotation');
   if(!el || !DATA.sectors || !DATA.sectors.length) return;
   const tf = ACTIVE_TF;
-
-  // Sort sectors by performance descending
   const sorted = [...DATA.sectors].sort((a,b) => (b[tf]||0) - (a[tf]||0));
-  const maxAbs  = Math.max(...sorted.map(s => Math.abs(s[tf]||0)), 0.01);
+  const maxAbs = Math.max(...sorted.map(s => Math.abs(s[tf]||0)), 0.01);
 
   el.innerHTML = sorted.map(s => {
     const pct  = s[tf] || 0;
     const pos  = pct >= 0;
     const barW = Math.round(Math.abs(pct) / maxAbs * 100);
-    const col  = pos
-      ? `rgba(5,150,105,${0.25 + (barW/100)*0.55})`
-      : `rgba(220,38,38,${0.25 + (barW/100)*0.55})`;
+    const intensity = barW / 100;
+    const greenBright = [63,185,80]; const redBright = [248,81,73];
+    const bright = pos ? greenBright : redBright;
+    const col = `rgb(${bright.map(c=>Math.round(c*(0.4+intensity*0.6))).join(',')})`;
+    const pctCol = pos ? '#3fb950' : '#f85149';
     return `<div class="rot-row">
-      <span class="rot-sym">${s.sym}</span>
+      <span class="rot-sym" style="color:${pctCol}">${s.sym}</span>
       <span class="rot-name">${s.name}</span>
-      <div class="rot-bar-wrap">
+      <div class="rot-bar-wrap" style="background:#0a0f17;border:1px solid #1a2530">
         <div class="rot-bar" style="width:${barW}%;background:${col}"></div>
       </div>
       <span class="rot-pct ${pos?'pos':'neg'}">${pos?'+':''}${pct.toFixed(2)}%</span>
     </div>`;
   }).join('');
 }
-
 
 // ── PANE 3: SCREENER ─────────────────────────────────────────────────────────
 const STRATEGIES = {
@@ -1477,6 +1492,51 @@ document.querySelectorAll('.mode-btn').forEach(btn=>{
     else { renderScreenerGrid(); }
   });
 });
+
+
+// ── MANUAL SCAN TRIGGER ──────────────────────────────────────────────────────
+async function triggerScan(){
+  const pwd = prompt('Enter scan password:');
+  if(!pwd) return;
+  const btn = document.getElementById('refresh-btn');
+  if(btn){ btn.textContent='Scanning…'; btn.disabled=true; }
+  try{
+    const resp = await fetch('/api/trigger-scan', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({password: pwd})
+    });
+    const data = await resp.json();
+    if(data.ok){
+      if(btn){ btn.textContent='✓ Triggered'; }
+      setTimeout(()=>{ if(btn){ btn.textContent='↻ Scan'; btn.disabled=false; } }, 3000);
+      // Poll for new data after 15 mins
+      setTimeout(async()=>{
+        const res = await fetch('market_data.json?t='+Date.now());
+        if(res.ok){ const d=await res.json(); DATA=d; renderMarket(); renderScreenerGrid(); }
+      }, 900000);
+    } else {
+      alert(data.error||'Wrong password');
+      if(btn){ btn.textContent='↻ Scan'; btn.disabled=false; }
+    }
+  } catch(e){
+    alert('Failed to trigger scan');
+    if(btn){ btn.textContent='↻ Scan'; btn.disabled=false; }
+  }
+}
+
+// Simple data refresh (no new scan, just reload market_data.json)
+async function refreshData(){
+  const btn = document.getElementById('refresh-btn');
+  if(btn){ btn.textContent='↻…'; btn.disabled=true; }
+  try{
+    const res = await fetch('market_data.json?t='+Date.now());
+    if(res.ok){ const d=await res.json(); DATA=d; renderMarket(); renderScreenerGrid(); renderSectorMap(); renderSectorRotation(); }
+    if(btn){ btn.textContent='✓'; setTimeout(()=>{ btn.textContent='↻'; btn.disabled=false; },1500); }
+  } catch(e){
+    if(btn){ btn.textContent='↻'; btn.disabled=false; }
+  }
+}
 
 // ── LOAD DATA + INIT ──────────────────────────────────────────────────────────
 async function init(){
