@@ -533,10 +533,9 @@ body.light-mode .hover-meta{color:#52647a}
 @media(max-width:1000px){#theme-grid{grid-template-columns:repeat(2,1fr)!important}}
 
 
-.scard-accent{position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:9px 0 0 9px}
-.scard.score-hi .scard-accent{background:#3fb950}
-.scard.score-mid .scard-accent{background:#58a6ff}
-.scard.score-lo .scard-accent{background:#d29922}
+.scard.score-hi{border-left:3px solid #3fb950}
+.scard.score-mid{border-left:3px solid #58a6ff}
+.scard.score-lo{border-left:3px solid #d29922}
 .scard-footer{border-top:1px solid var(--bg3);padding:7px 12px 7px 18px;display:flex;align-items:center;gap:8px;background:var(--bg3);margin-top:auto}
 .scard-footer-bar{flex:1;height:3px;background:var(--bg4);border-radius:2px;overflow:hidden}
 .scard-footer-fill{height:100%;border-radius:2px}
@@ -920,22 +919,12 @@ function renderSectorMap(){
   map.innerHTML=DATA.sectors.map(s=>{
     const pct=s[tf]||0;
     const pos=pct>=0;
-    const intensity=Math.min(1,Math.abs(pct)/3);
-    // Vivid color scaling
-    const greenBase = [13,46,26]; const greenBright = [63,185,80];
-    const redBase   = [45,12,12]; const redBright   = [248,81,73];
-    const base = pos ? greenBase : redBase;
-    const bright = pos ? greenBright : redBright;
-    const bg = `rgb(${base.map((b,i)=>Math.round(b+(bright[i]-b)*Math.min(intensity*1.5,1))).join(',')})`;
-    const borderCol = pos
-      ? `rgb(${greenBright.map(c=>Math.round(c*(0.4+intensity*0.6))).join(',')})`
-      : `rgb(${redBright.map(c=>Math.round(c*(0.4+intensity*0.6))).join(',')})`;
-    const textCol = pos ? '#3fb950' : '#f85149';
-    const nameCol = pos ? 'rgba(63,185,80,.65)' : 'rgba(248,81,73,.65)';
-    return`<div class="sector-tile" style="background:${bg};border:1px solid transparent;border-left:4px solid ${borderCol};cursor:pointer" onclick="window.open('https://www.tradingview.com/chart/?symbol=AMEX:${s.sym}','_blank')">
-      <div class="sector-sym" style="color:${textCol}">${s.sym}</div>
-      <div class="sector-name" style="color:${nameCol}">${s.name}</div>
-      <div class="sector-pct" style="color:${textCol}">${pct>=0?'+':''}${pct.toFixed(2)}%</div>
+    const pctCol=pos?'#3fb950':'#f85149';
+    const borderCol=pos?'rgba(63,185,80,.5)':'rgba(248,81,73,.5)';
+    return`<div class="sector-tile" style="border-left:3px solid ${borderCol};cursor:pointer;background:var(--bg2)" onclick="window.open('https://www.tradingview.com/chart/?symbol=AMEX:${s.sym}','_blank')">
+      <div class="sector-sym" style="color:var(--text)">${s.sym}</div>
+      <div class="sector-name" style="color:var(--text3)">${s.name}</div>
+      <div class="sector-pct" style="color:${pctCol}">${pct>=0?'+':''}${pct.toFixed(2)}%</div>
     </div>`;
   }).join('');
 }
@@ -1146,7 +1135,6 @@ function renderScreenerGrid(){
     const scoreCol = s.score>=80?'#3fb950':s.score>=65?'#58a6ff':'#d29922';
     const scoreCls = s.score>=80?'score-hi':s.score>=65?'score-mid':'score-lo';
     return`<div class="scard ${scoreCls}" data-ticker="${s.ticker}" data-name="${s.name||''}">
-      <div class="scard-accent"></div>
       <div class="scard-default">
         <div class="scard-row1">
           <div style="display:flex;flex-direction:column">
