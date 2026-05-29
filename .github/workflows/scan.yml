@@ -43,14 +43,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           GITHUB_REPO: ${{ secrets.GH_REPO }}
         run: python3 scanner_market.py
-
-      - name: Commit scan results
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-        run: |
-          git config user.name "Stratify Bot"
-          git config user.email "bot@stratify.app"
-          git remote set-url origin https://x-access-token:${GH_PAT}@github.com/shreyanshsalunke/marketedge.git
-          git add market_data.json fundamentals_cache.json
-          git diff --staged --quiet || git commit -m "Scan $(date -u '+%Y-%m-%d %H:%M UTC')"
-          git push origin main
