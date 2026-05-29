@@ -104,6 +104,11 @@ def load_config() -> dict:
         print("     Get a free key at financialmodelingprep.com and add:")
         print("     FMP_API_KEY=your_key to ~/.stratify_config")
     cfg["FMP_API_KEY"] = fmp_key
+    # GitHub token for pushing results
+    gh_token = os.environ.get("GH_PAT", os.environ.get("GITHUB_TOKEN", cfg.get("GITHUB_TOKEN","")))
+    gh_repo = os.environ.get("GH_REPO", cfg.get("GITHUB_REPO",""))
+    cfg["GITHUB_TOKEN"] = gh_token
+    cfg["GITHUB_REPO"] = gh_repo
     return cfg
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
