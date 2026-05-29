@@ -1486,7 +1486,8 @@ async function triggerScan(){
   const pwd = prompt('Enter scan password:');
   if(!pwd) return;
   const btn = document.getElementById('refresh-btn');
-  if(btn){ btn.textContent='Scanning…'; btn.disabled=true; }
+  const updEl = document.getElementById('updated');
+  if(btn){ btn.textContent='⏳ Running…'; btn.disabled=true; btn.style.color='#d29922'; }
   try{
     const resp = await fetch('/api/trigger-scan', {
       method:'POST',
@@ -1495,21 +1496,58 @@ async function triggerScan(){
     });
     const data = await resp.json();
     if(data.ok){
-      if(btn){ btn.textContent='✓ Triggered'; }
-      setTimeout(()=>{ if(btn){ btn.textContent='↻ Scan'; btn.disabled=false; } }, 3000);
-      // Poll for new data after 15 mins
-      setTimeout(async()=>{
-        const res = await fetch('market_data.json?t='+Date.now());
-        if(res.ok){ const d=await res.json(); DATA=d; renderMarket(); renderScreenerGrid(); }
-      }, 900000);
+      if(updEl) updEl.textContent='Scan triggered — checking every minute…';
+      const startTime = Date.now();
+      const oldScannedAt = DATA.scanned_at||'';
+      let elapsed = 0;
+      const poll = setInterval(async()=>{
+        elapsed += 1;
+        if(btn) btn.textContent=`⏳ ${elapsed}m…`;
+        try{
+          const res = await fetch('market_data.json?t='+Date.now());
+          if(res.ok){
+            const d = await res.json();
+            if(d.scanned_at && d.scanned_at !== oldScannedAt){
+              clearInterval(poll);
+              DATA = d;
+              renderMarket();
+              renderScreenerGrid();
+              renderSectorMap();
+              renderSectorRotation();
+              // Update timestamp
+              const scanDate = new Date(DATA.scanned_at);
+              const localTime = scanDate.toLocaleString('en-US',{timeZone:'America/Toronto',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
+              if(updEl) updEl.textContent='✓ Scan complete · '+localTime+' ET';
+              if(updEl) updEl.style.color='#3fb950';
+              if(btn){ btn.textContent='✓ Done'; btn.style.color='#3fb950'; }
+              setTimeout(()=>{
+                if(btn){ btn.textContent='↻ Scan'; btn.disabled=false; btn.style.color=''; }
+                if(updEl) updEl.style.color='';
+              }, 10000);
+              if(Notification.permission==='granted'){
+                new Notification('Stratify', {body:'Scan complete — fresh data loaded!', icon:'/icon-192.png'});
+              }
+            }
+          }
+        } catch(e){}
+        if(Date.now()-startTime > 1200000){
+          clearInterval(poll);
+          if(btn){ btn.textContent='↻ Scan'; btn.disabled=false; btn.style.color=''; }
+          if(updEl) updEl.textContent='Scan timed out — try again';
+        }
+      }, 60000);
     } else {
       alert(data.error||'Wrong password');
-      if(btn){ btn.textContent='↻ Scan'; btn.disabled=false; }
+      if(btn){ btn.textContent='↻ Scan'; btn.disabled=false; btn.style.color=''; }
     }
   } catch(e){
-    alert('Failed to trigger scan');
-    if(btn){ btn.textContent='↻ Scan'; btn.disabled=false; }
+    alert('Failed — check Vercel environment variables');
+    if(btn){ btn.textContent='↻ Scan'; btn.disabled=false; btn.style.color=''; }
   }
+}
+
+if('Notification' in window && Notification.permission==='default'){
+  Notification.requestPermission();
 }
 
 // Simple data refresh (no new scan, just reload market_data.json)
