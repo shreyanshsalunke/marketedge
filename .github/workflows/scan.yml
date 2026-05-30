@@ -43,12 +43,3 @@ jobs:
           GH_PAT: ${{ secrets.GH_PAT }}
           GH_REPO: ${{ secrets.GH_REPO }}
         run: python3 scanner_market.py
-
-      - name: Commit and push results
-        run: |
-          git config user.name "Stratify Bot"
-          git config user.email "bot@stratify.app"
-          git config http.extraHeader "Authorization: Bearer ${{ secrets.GH_PAT }}"
-          git add market_data.json fundamentals_cache.json
-          git diff --staged --quiet || git commit -m "Scan $(date -u '+%Y-%m-%d %H:%M UTC')"
-          git push
