@@ -5,18 +5,25 @@ export default async function handler(req, res) {
 
   const { password } = req.body;
   const SECRET = process.env.SCAN_PASSWORD;
+  const GH_PAT = process.env.GH_PAT;
+  const GH_REPO = process.env.GH_REPO;
 
-  if (!SECRET || password !== SECRET) {
+  // Debug - check env vars exist (don't expose values)
+  if (!SECRET) return res.status(500).json({ error: 'SCAN_PASSWORD not set in Vercel env vars' });
+  if (!GH_PAT) return res.status(500).json({ error: 'GH_PAT not set in Vercel env vars' });
+  if (!GH_REPO) return res.status(500).json({ error: 'GH_REPO not set in Vercel env vars' });
+
+  if (password !== SECRET) {
     return res.status(401).json({ error: 'Wrong password' });
   }
 
   try {
     const response = await fetch(
-      `https://api.github.com/repos/${process.env.GH_REPO}/actions/workflows/scan.yml/dispatches`,
+      `https://api.github.com/repos/${GH_REPO}/actions/workflows/scan.yml/dispatches`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `token ${process.env.GH_PAT}`,
+          'Authorization': `Bearer ${GH_PAT}`,
           'Accept': 'application/vnd.github.v3+json',
           'Content-Type': 'application/json',
         },
@@ -25,10 +32,10 @@ export default async function handler(req, res) {
     );
 
     if (response.status === 204) {
-      return res.status(200).json({ ok: true, message: 'Scan triggered — check back in ~15 minutes' });
+      return res.status(200).json({ ok: true });
     } else {
       const data = await response.text();
-      return res.status(500).json({ error: 'GitHub API error', detail: data });
+      return res.status(500).json({ error: 'GitHub API error', status: response.status, detail: data });
     }
   } catch (err) {
     return res.status(500).json({ error: err.message });
