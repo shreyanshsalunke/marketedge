@@ -324,17 +324,30 @@ a.pill:hover{border-color:var(--accent);color:var(--accent)}
 #theme-toggle:hover{border-color:var(--border2);color:var(--text)}
 body.light-mode #theme-toggle{background:#e2e8f0;border-color:#cbd5e1;color:#1e293b}
 body.light-mode{
-  --bg:#f8fafc;--bg2:#ffffff;--bg3:#f1f5f9;--bg4:#e8edf5;
-  --border:#dde3ed;--border2:#b8c4d8;
-  --text:#0a1628;--text2:#1e3a5f;--text3:#52647a;
+  --bg:#f0f4f8;--bg2:#ffffff;--bg3:#e8eef5;--bg4:#dce6f0;
+  --border:#c8d8e8;--border2:#a8bdd0;
+  --text:#0a1628;--text2:#1e3a5f;--text3:#4a6a8a;
   --accent:#1565c0;--accent2:#1976d2;
-  --bull:#15803d;--bull2:#166534;--bull-bg:rgba(21,128,61,.08);
-  --bear:#dc2626;--bear2:#b91c1c;--bear-bg:rgba(220,38,38,.08);
-  --neut:#b45309;--neut-bg:rgba(180,83,9,.08);
-  --purple:#6d28d9;--purple-bg:rgba(109,40,217,.08);
+  --bull:#15803d;--bull2:#166534;--bull-bg:rgba(21,128,61,.1);
+  --bear:#dc2626;--bear2:#b91c1c;--bear-bg:rgba(220,38,38,.1);
+  --neut:#b45309;--neut-bg:rgba(180,83,9,.1);
+  --purple:#6d28d9;--purple-bg:rgba(109,40,217,.1);
   --cyan:#0284c7;--teal:#0f766e;
-  --shadow-md:0 2px 12px rgba(0,0,0,.08);
+  --shadow-md:0 2px 12px rgba(0,0,0,.1);
 }
+body.light-mode #header{background:rgba(240,244,248,.98);border-bottom:1px solid #c8d8e8}
+body.light-mode .scard{background:#fff;border-color:#c8d8e8;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+body.light-mode .scard:hover{border-color:#a8bdd0;box-shadow:0 3px 12px rgba(0,0,0,.1)}
+body.light-mode .scard-footer{background:#f0f4f8;border-color:#e8eef5}
+body.light-mode .idx-card{background:#fff;border-color:#c8d8e8;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+body.light-mode .breadth-card{background:#fff;border-color:#c8d8e8;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+body.light-mode #tabs{background:#fff;border-bottom-color:#c8d8e8}
+body.light-mode .tab-btn.active{color:#1565c0;border-bottom-color:#1565c0}
+body.light-mode .mode-btn{background:#e8eef5;border-color:#c8d8e8;color:#4a6a8a}
+body.light-mode .mode-btn.active{background:#dce6f5;color:#1565c0;border-color:#1565c0}
+body.light-mode .sector-tile{background:#fff!important;border-color:#c8d8e8}
+body.light-mode .theme-card{background:#fff;border-color:#c8d8e8}
+body.light-mode #theme-toggle{background:#e8eef5;border-color:#c8d8e8;color:#4a6a8a}
 body.light-mode #header{background:rgba(255,255,255,.98);border-bottom:1px solid #dde3ed;box-shadow:0 1px 4px rgba(0,0,0,.06)}
 body.light-mode .pane{background:#f8fafc}
 body.light-mode .scard{background:#fff;border-color:#dde3ed;box-shadow:0 1px 4px rgba(0,0,0,.05)}
@@ -812,15 +825,33 @@ function renderIndexes(){
   grid.innerHTML=DATA.indexes.map(idx=>{
     const cl1=pctClass(idx.d1),cl7=pctClass(idx.d7);
     const flagMap={US:'',CA:'',BTC:'BTC',ETH:'ETH'};
+    // Mini sparkline
+    const ohlc = idx.ohlc || [];
+    const closes = ohlc.map(b=>b[4]).filter(Boolean);
+    let sparkSVG = '';
+    if(closes.length >= 5){
+      const mn=Math.min(...closes), mx=Math.max(...closes), rng=mx-mn||1;
+      const pts=closes.slice(-20).map((c,i,arr)=>{
+        const x=((i/(arr.length-1))*90+5).toFixed(1);
+        const y=(28-(c-mn)/rng*22).toFixed(1);
+        return `${x},${y}`;
+      }).join(' ');
+      const sparkCol=idx.d1>=0?'#3fb950':'#f85149';
+      sparkSVG=`<svg width="100" height="32" style="display:block;margin-top:4px"><polyline points="${pts}" fill="none" stroke="${sparkCol}" stroke-width="1.5" stroke-linejoin="round" opacity=".8"/></svg>`;
+    }
     return`<div class="idx-card ${cardClass(idx.d1)}">
       <div class="idx-flag">${flagMap[idx.flag]||idx.flag} ${idx.type.toUpperCase()}</div>
-      <div class="idx-sym">${idx.sym}</div>
-      <div class="idx-name">${idx.name}</div>
-      <div class="idx-price">${fmtPrice(idx.price)}</div>
-      <div class="idx-changes">
-        <span class="idx-chg ${cl1}"><span>1D</span>${fmt(idx.d1)}</span>
-        <span class="idx-chg ${cl7}"><span>1W</span>${fmt(idx.d7)}</span>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="idx-sym">${idx.sym}</div>
+          <div class="idx-price">${fmtPrice(idx.price)}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="idx-chg ${cl1}">${fmt(idx.d1)}</div>
+          <div class="idx-chg ${cl7}" style="font-size:9px;opacity:.7"><span>1W</span>${fmt(idx.d7)}</div>
+        </div>
       </div>
+      ${sparkSVG}
     </div>`;
   }).join('');
 }
@@ -828,6 +859,9 @@ function renderIndexes(){
 function renderBreadth(){
   const br=DATA.breadth||{};
   if(!br) return;
+  // Update breadth cards with trend indicators
+  const cards = document.querySelectorAll('.breadth-card');
+  cards.forEach(c=>c.style.borderLeft='3px solid var(--border)');
 
   // Header stats
   document.getElementById('hdr-mco').textContent=br.mcclellan!=null?(br.mcclellan>=0?'+':'')+br.mcclellan.toFixed(1):'—';
@@ -1291,7 +1325,21 @@ function renderWatchlist(){
           ${w.strategy?`<span class="strategy-badge VCP" style="font-size:7px">${w.strategy}</span>`:''}
           <span class="scard-score" style="font-size:16px">${(w.score||0).toFixed(1)}</span>
         </div>
-        <div class="scard-name">${w.name} · $${fmtPrice(w.price)} · ${w.sector}</div>
+        <div class="scard-name">${w.name} · ${w.sector}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
+          <span style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">$${fmtPrice(w.price)}</span>
+          ${(()=>{
+            // Find current price from scan data
+            const all = [...(DATA.qullamaggie||[]),...(DATA.longterm||[])];
+            const cur = all.find(s=>s.ticker===w.ticker);
+            if(cur && cur.price && w.price){
+              const chgPct = ((cur.price - w.price)/w.price*100);
+              const col = chgPct>=0?'#3fb950':'#f85149';
+              return `<span style="font-family:var(--font-mono);font-size:11px;color:${col}">${chgPct>=0?'▲+':'▼'}${chgPct.toFixed(1)}% since saved</span>`;
+            }
+            return '';
+          })()}
+        </div>
       </div>
       <div class="scard-pills" style="padding-top:6px">
         <span class="pill">Added ${new Date(w.addedAt).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
@@ -1530,7 +1578,7 @@ async function triggerScan(){
             }
           }
         } catch(e){}
-        if(Date.now()-startTime > 1200000){
+        if(Date.now()-startTime > 1800000){
           clearInterval(poll);
           if(btn){ btn.textContent='↻ Scan'; btn.disabled=false; btn.style.color=''; }
           if(updEl) updEl.textContent='Scan timed out — try again';
