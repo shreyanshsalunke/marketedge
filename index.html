@@ -150,24 +150,24 @@ td.td-name{font-family:'Inter',sans-serif;font-size:13px;color:var(--text3);max-
 .d-name{font-size:12px;color:var(--text3);margin-bottom:10px}
 .d-price{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;color:var(--text)}
 .detail-body{padding:16px 18px;display:flex;flex-direction:column;gap:18px;min-width:360px}
-.d-section-title{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px}
+.d-section-title{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
 .rank-box{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:var(--radius);background:rgba(77,158,247,.08);border:1px solid rgba(77,158,247,.2)}
-.rank-label{font-size:10px;color:var(--text2)}
-.rank-desc{font-size:9px;color:var(--text3);margin-top:2px}
+.rank-label{font-size:13px;color:var(--text2)}
+.rank-desc{font-size:11px;color:var(--text3);margin-top:4px}
 .rank-val{font-family:'Clash Display',sans-serif;font-size:38px;font-weight:700;color:var(--accent)}
 .score-row{display:flex;flex-direction:column;gap:8px}
 .score-item{display:flex;flex-direction:column;gap:3px}
 .score-item-top{display:flex;justify-content:space-between}
-.score-lbl{font-size:12px;color:var(--text3)}
-.score-num{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600}
-.score-bar-bg{height:3px;border-radius:2px;background:var(--border);overflow:hidden}
+.score-lbl{font-size:13px;color:var(--text3)}
+.score-num{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600}
+.score-bar-bg{height:4px;border-radius:2px;background:var(--border);overflow:hidden;margin-top:4px}
 .score-bar-fg{height:100%;border-radius:2px;transition:width .6s cubic-bezier(.4,0,.2,1)}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-.stat-item{padding:8px 10px;border-radius:var(--radius);background:var(--bg3);border:1px solid var(--border)}
-.stat-lbl{font-size:11px;color:var(--text3);margin-bottom:4px}
-.stat-val{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:var(--text)}
+.stat-item{padding:10px 12px;border-radius:var(--radius);background:var(--bg3);border:1px solid var(--border)}
+.stat-lbl{font-size:12px;color:var(--text3);margin-bottom:5px;letter-spacing:.02em}
+.stat-val{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;color:var(--text)}
 .tags-wrap{display:flex;flex-wrap:wrap;gap:4px}
-.tag-pill{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 9px;border-radius:4px;color:var(--text3);background:var(--bg4);border:1px solid var(--border)}
+.tag-pill{font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 10px;border-radius:4px;color:var(--text2);background:var(--bg4);border:1px solid var(--border)}
 .d-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .wl-btn{width:100%;padding:8px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg3);color:var(--text3);font-family:'Clash Display',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .2s}
 .wl-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(77,158,247,.08)}
@@ -702,8 +702,8 @@ function openDetail(ticker){
       'ROIC': s.roic>0?s.roic.toFixed(1)+'%':'—',
       'EPS CAGR': s.eps_cagr>0?'+'+s.eps_cagr.toFixed(1)+'%':'—',
       'Dist 200': s.dist_200!=null?(s.dist_200>=0?'+':'')+s.dist_200.toFixed(1)+'%':'—',
-      'Short %': (s.short_float||s.sf)?(s.short_float||s.sf).toFixed(1)+'%':'—',
-      'Sector': s.sector||'—',
+      'Short %': (s.short_float||s.sf)?(s.short_float||s.sf).toFixed(1)+'%':'N/A',
+      'Sector': s.sector||s.industry||'—',
       ...(s.peg?{'PEG': s.peg.toFixed(1)}:{}),
       ...(s.buyback?{'Buyback': '↓ Yes'}:{}),
     };
@@ -714,8 +714,8 @@ function openDetail(ticker){
       'From High': parsed.fromHigh!=null?parsed.fromHigh.toFixed(1)+'%':'—',
       'Vol Ratio': parsed.volRatio||'—',
       'Tight %': parsed.tight!=null?parsed.tight.toFixed(1)+'%':'—',
-      'Short %': (s.short_float||s.sf)?(s.short_float||s.sf).toFixed(1)+'%':'—',
-      'Sector': s.sector||'—',
+      'Short %': (s.short_float||s.sf)?(s.short_float||s.sf).toFixed(1)+'%':'N/A',
+      'Sector': s.sector||s.industry||'—',
       ...(s.base_count?{'Base': s.base_count===1?'1st':s.base_count===2?'2nd':'3rd+'}:{}),
       ...(s.pivot?{'Pivot': '$'+fmtPrice(s.pivot)}:{}),
     };
