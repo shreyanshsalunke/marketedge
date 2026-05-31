@@ -1077,10 +1077,10 @@ def compute_score_bonuses(ticker, daily, rs_pctile, score, cache, spy=None):
         if from_high <= 3:  bonus += 4
         elif from_high <= 8: bonus += 2
 
-    # 4. Short interest sweet spot (+3 pts)
+    # 4. Short interest — context bonus only, not a major driver
     sf = si.get("short_float", 0) or 0
-    if 10 <= sf <= 30: bonus += 3
-    elif sf > 30: bonus += 1
+    if 10 <= sf <= 30: bonus += 1   # mild squeeze potential
+    elif sf > 30: bonus += 1        # high short interest, potential for squeeze
 
     # 5. Relative volume on breakout (+3 pts)
     if len(daily) >= 50:
@@ -1091,7 +1091,15 @@ def compute_score_bonuses(ticker, daily, rs_pctile, score, cache, spy=None):
         elif rel_vol >= 1.5: bonus += 2
         elif rel_vol >= 1.2: bonus += 1
 
-    # 6. Base count — penalize late-stage bases (+2 for early, -2 for late)
+    # 6. ADR tiered bonus — higher volatility = more swing potential
+    try:
+        stock_adr = float(((daily["High"] - daily["Low"]) / daily["Low"] * 100).tail(20).mean())
+        if stock_adr >= 6.0:   bonus += 4
+        elif stock_adr >= 4.5: bonus += 3
+        elif stock_adr >= 3.5: bonus += 2
+    except: pass
+
+    # 7. Base count — penalize late-stage bases (+2 for early, -2 for late)
     base_n = compute_base_count(daily)
     if base_n <= 2:   bonus += 2   # first/second base — most powerful
     elif base_n >= 4: bonus -= 2   # late stage — higher failure rate
@@ -2339,7 +2347,7 @@ def scan_swing_unified(ticker, daily, rs_pctile, cache, spy=None) -> dict | None
         if s200 <= s200_20d * 0.999: return None
         high52 = float(daily["High"].rolling(252, min_periods=100).max().iloc[-1])
         from_high = (high52 - price) / high52 * 100
-        if from_high > 25: return None
+        if from_high > 25: return None   # outer gate — DEVELOPING can be up to 25%
 
         # ── 3. RS LINE STRENGTH (required for all tiers) ─────────────────────
         rs_near_high = True
@@ -2349,7 +2357,7 @@ def scan_swing_unified(ticker, daily, rs_pctile, cache, spy=None) -> dict | None
                 rs_line = close / spy_close
                 rs_3m_high = float(rs_line.tail(63).max())
                 rs_current = float(rs_line.iloc[-1])
-                rs_near_high = rs_current >= rs_3m_high * 0.95
+                rs_near_high = rs_current >= rs_3m_high * 0.97
             except: pass
         if not rs_near_high: return None
 
@@ -2384,14 +2392,25 @@ def scan_swing_unified(ticker, daily, rs_pctile, cache, spy=None) -> dict | None
         # GOOD: Stage2 + RS + ADR + at least 1 tightness condition
         # DEVELOPING: Stage2 + RS — on radar, not yet tight
 
-        if adr >= 3.5 and conditions_met >= 2:
+        if adr >= 3.5 and conditions_met >= 2 and from_high <= 15:
             tier = "READY"
-        elif adr >= 3.5 and conditions_met >= 1:
+        elif adr >= 3.5 and conditions_met >= 1 and from_high <= 20:
             tier = "GOOD"
         elif adr >= 2.5:
             tier = "DEVELOPING"
         else:
             return None  # too slow, not a swing candidate
+
+        # ── MARKET REGIME GATE ────────────────────────────────────────────────
+        # READY setups only valid when market is supportive
+        # Check SPY above its 50 SMA as a simple regime filter
+        if tier == "READY" and spy is not None and len(spy) >= 50:
+            try:
+                spy_price = float(spy["Close"].iloc[-1])
+                spy_s50   = float(sma(spy["Close"], 50).iloc[-1])
+                if spy_price < spy_s50 * 0.99:
+                    tier = "GOOD"   # downgrade to GOOD if market fighting you
+            except: pass
 
         # ── SCORING ───────────────────────────────────────────────────────────
         score = 0
@@ -2481,12 +2500,14 @@ def scan_core(ticker, daily, rs_pctile, cache) -> list[dict]:
     s50_val  = float(sma(close, 50).iloc[-1])
 
     if s200_val <= s200_1m * 0.998: return []   # 200 SMA must be rising
-    if price < s200_val * 0.85: return []        # price can't be too far below 200
+    if price < s200_val * 0.80: return []        # price can't be too far below 200 (loosened from 0.85)
 
-    # ── Proximity to 200 SMA (entry timing) ──────────────────────────────────
+    # ── Proximity to 200 SMA (timing layer — not a hard gate) ────────────────
     dist_200 = (price - s200_val) / s200_val * 100  # % above/below 200 SMA
     # Best entry: price within -5% to +8% of 200 SMA (pullback zone)
     near_200 = -5 <= dist_200 <= 8
+    # Extended but still valid: within 20% above 200 SMA
+    extended = 8 < dist_200 <= 20
 
     results = []
     score = 0
@@ -2494,20 +2515,33 @@ def scan_core(ticker, daily, rs_pctile, cache) -> list[dict]:
 
     # ── PROFITABILITY SCORE (0-30 pts) ────────────────────────────────────────
     prof_score = 0
-    if roe >= 20:       prof_score += 15; tags.append(f"ROE {roe:.0f}%")
-    elif roe >= 15:     prof_score += 10; tags.append(f"ROE {roe:.0f}%")
-    if roic >= 15:      prof_score += 10; tags.append(f"ROIC {roic:.0f}%")
-    elif roic >= 12:    prof_score += 7
-    if op_margin >= 20: prof_score += 5
-    elif op_margin >= 10: prof_score += 3
+    gross_margin = si.get("gross_margin", 0) or 0
+
+    # ROE — graduated, not binary
+    if roe >= 25:       prof_score += 15; tags.append(f"ROE {roe:.0f}%")
+    elif roe >= 20:     prof_score += 12; tags.append(f"ROE {roe:.0f}%")
+    elif roe >= 15:     prof_score += 8;  tags.append(f"ROE {roe:.0f}%")
+    elif roe >= 10:     prof_score += 4
+
+    # ROIC — graduated, not binary
+    if roic >= 20:      prof_score += 10; tags.append(f"ROIC {roic:.0f}%")
+    elif roic >= 15:    prof_score += 8;  tags.append(f"ROIC {roic:.0f}%")
+    elif roic >= 8:     prof_score += 5   # softened from 12 minimum
+
+    # Operating margin
+    if op_margin >= 25: prof_score += 5
+    elif op_margin >= 15: prof_score += 3
+    elif op_margin >= 8:  prof_score += 1
+
+    # Gross margin stability (new) — asset-light compounders have high gross margins
+    if gross_margin >= 60: prof_score += 3; tags.append(f"GM {gross_margin:.0f}%")
+    elif gross_margin >= 40: prof_score += 1
 
     # If no profitability data, use eps_growth as proxy
     if prof_score == 0 and eps_growth >= 20:
-        prof_score = 15
-        tags.append(f"EPS +{eps_growth:.0f}%")
+        prof_score = 15; tags.append(f"EPS +{eps_growth:.0f}%")
     elif prof_score == 0 and eps_growth >= 10:
-        prof_score = 8
-        tags.append(f"EPS +{eps_growth:.0f}%")
+        prof_score = 8;  tags.append(f"EPS +{eps_growth:.0f}%")
 
     # ── GROWTH SCORE (0-30 pts) ───────────────────────────────────────────────
     growth_score = 0
@@ -2524,13 +2558,27 @@ def scan_core(ticker, daily, rs_pctile, cache) -> list[dict]:
     # ── BALANCE SHEET SCORE (0-15 pts) ────────────────────────────────────────
     bs_score = 0
     if de_ratio is not None:
-        if de_ratio < 0.3:   bs_score += 8
-        elif de_ratio < 0.8: bs_score += 5
+        if de_ratio < 0.3:    bs_score += 8   # very low debt
+        elif de_ratio < 0.8:  bs_score += 5   # manageable
+        elif de_ratio < 1.5:  bs_score += 2   # softened — asset-light context
+        # negative D/E or very high debt = 0 pts, not a disqualifier
     else: bs_score += 3  # assume ok if no data
+
     if int_coverage is not None:
         if int_coverage > 10: bs_score += 7
         elif int_coverage > 5: bs_score += 5
+        elif int_coverage > 2: bs_score += 2
     else: bs_score += 3
+
+    # ── SHARE DILUTION CHECK (0-5 pts) ────────────────────────────────────────
+    # Buyback trend (shares declining) is a quality signal for compounders
+    dilution_score = 0
+    buyback = si.get("buyback_trend", False)
+    shares_out = si.get("shares_outstanding", None)
+    if buyback:
+        dilution_score = 5; tags.append("Buyback ↓")
+    elif shares_out is not None:
+        dilution_score = 2  # neutral — neither diluting nor buying back
 
     # ── INSTITUTIONAL SCORE (0-10 pts) ────────────────────────────────────────
     inst_score = 0
@@ -2539,39 +2587,54 @@ def scan_core(ticker, daily, rs_pctile, cache) -> list[dict]:
     elif inst_own >= 20:  inst_score = 4
 
     # ── VALUATION SCORE (0-10 pts) ────────────────────────────────────────────
+    # PEG < 1.5 replaced with quality-contextual band
     val_score = 0
     if peg is not None:
-        if peg < 1.0:    val_score = 10; tags.append(f"PEG {peg:.1f}")
-        elif peg < 1.5:  val_score = 7;  tags.append(f"PEG {peg:.1f}")
-        elif peg < 2.0:  val_score = 4
-    else: val_score = 5  # no PEG data, give neutral score
+        if peg < 0.8:    val_score = 10; tags.append(f"PEG {peg:.1f}")
+        elif peg < 1.2:  val_score = 8;  tags.append(f"PEG {peg:.1f}")
+        elif peg < 1.8:  val_score = 5;  tags.append(f"PEG {peg:.1f}")
+        elif peg < 2.5:  val_score = 2   # high quality can deserve higher PEG
+    elif pe is not None:
+        # Fallback to PE if no PEG
+        if pe < 15:   val_score = 8
+        elif pe < 25: val_score = 5
+        elif pe < 40: val_score = 3
+    else: val_score = 4  # no valuation data, give slight neutral score
 
-    # ── ENTRY TIMING BONUS (0-5 pts) ──────────────────────────────────────────
+    # ── ENTRY TIMING BONUS (0-8 pts) — not a hard gate ───────────────────────
     timing_score = 0
     if near_200:
-        timing_score = 5
-        tags.append(f"At 200 SMA ({dist_200:+.1f}%)")
-    elif dist_200 <= 15:
-        timing_score = 3
+        timing_score = 8; tags.append(f"At 200 SMA ({dist_200:+.1f}%)")
+    elif extended:
+        timing_score = 4; tags.append(f"Above 200 SMA (+{dist_200:.1f}%)")
+    elif dist_200 > 20:
+        timing_score = 1  # very extended — low timing score but not excluded
 
     # ── RS BONUS (0-5 pts) ────────────────────────────────────────────────────
     rs_score = min(5, rs_pctile / 20)
 
     # ── TOTAL SCORE ───────────────────────────────────────────────────────────
-    score = round(prof_score + growth_score + bs_score + inst_score + val_score + timing_score + rs_score, 1)
+    score = round(prof_score + growth_score + bs_score + dilution_score + inst_score + val_score + timing_score + rs_score, 1)
     score = min(score, 100)
 
     # Minimum threshold — must have some profitability AND growth data
     if prof_score == 0 and growth_score < 8: return []
     if score < 35: return []
 
-    status = "READY" if (score >= 70 and near_200) else "GOOD" if score >= 60 else "DEVELOPING"
+    # Status: READY requires quality score AND near 200 SMA (timing)
+    # GOOD: strong quality score regardless of timing
+    # DEVELOPING: decent quality score, building
+    status = ("READY"      if score >= 70 and near_200
+              else "GOOD"  if score >= 60
+              else "DEVELOPING")
 
     return [base_result(ticker, daily, rs_pctile, score, status, tags,
         {"strategy": "CORE", "methodology": "Quality Compounder",
          "roe": round(roe,1), "roic": round(roic,1),
+         "gross_margin": round(gross_margin,1),
          "eps_cagr": round(eps_cagr_5y,1), "peg": peg,
          "de_ratio": de_ratio, "inst": inst_own,
+         "buyback": buyback,
          "dist_200": round(dist_200,1),
          "from_high_pct": round((float(daily["High"].rolling(252,min_periods=50).max().iloc[-1])-price)/float(daily["High"].rolling(252,min_periods=50).max().iloc[-1])*100,1)
         }, "Core", cache)]
