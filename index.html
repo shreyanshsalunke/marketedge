@@ -509,6 +509,23 @@ function saveNote(t,n){ WL_NOTES[t]=n; localStorage.setItem('st_notes',JSON.stri
 function updateWatchCount(){ const el=document.getElementById('watch-count'); if(el) el.textContent=WATCHLIST.length?`(${WATCHLIST.length})`:''; }
 function earningsFlag(ticker){ const e=(DATA.earnings||[]).find(e=>e.ticker===ticker); return e?`<span class="earn-flag">ERN ${e.day}</span>`:''; }
 
+function parseFromTags(s){
+  // Extract numeric fields from tags array e.g. ["ADR 4.5%", "Vol 72% of avg", "From high 4.3%", "Tight 1.3%"]
+  const tags = s.tags||[];
+  let adr = s.adr||0;
+  let volRatio = s.vol_ratio||null;
+  let fromHigh = s.from_high_pct||null;
+  let tight = s.std_pct||null;
+  tags.forEach(t=>{
+    if(!adr && /ADR/i.test(t)){ const m=t.match(/([\d.]+)%/); if(m) adr=parseFloat(m[1]); }
+    if(volRatio==null && /Vol/i.test(t) && /avg/i.test(t)){ const m=t.match(/([\d.]+)%/); if(m) volRatio=(parseFloat(m[1])/100).toFixed(2)+'x'; }
+    if(fromHigh==null && /high/i.test(t)){ const m=t.match(/([\d.]+)%/); if(m) fromHigh=parseFloat(m[1]); }
+    if(tight==null && /Tight/i.test(t)){ const m=t.match(/([\d.]+)%/); if(m) tight=parseFloat(m[1]); }
+  });
+  if(volRatio==null && s.vol_ratio!=null) volRatio=s.vol_ratio.toFixed(2)+'x';
+  return {adr, volRatio, fromHigh, tight};
+}
+
 // ── TABS ──────────────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
@@ -606,12 +623,7 @@ function renderTableRows(){
     const rs = s.rs_pctile||s.rs||0;
     const status = (s.status||'GOOD').toUpperCase();
     const setup = s.strategy||s.scan||(s.tags&&s.tags[0])||'—';
-    // ADR: use direct field or parse from tags e.g. "ADR 4.5%"
-    let adr = s.adr||0;
-    if(!adr && s.tags) {
-      const adrTag = s.tags.find(t=>t.includes('ADR'));
-      if(adrTag) { const m=adrTag.match(/([\d.]+)%/); if(m) adr=parseFloat(m[1]); }
-    }
+    const {adr, volRatio, fromHigh} = parseFromTags(s);
     const scoreClass = score>=80?'sp-hi':score>=60?'sp-mid':'sp-lo';
     const stClass = status==='READY'?'st-ready':status==='GOOD'?'st-good':'st-dev';
     const stIcon = status==='READY'?'✓':status==='GOOD'?'◎':'·';
@@ -673,15 +685,15 @@ function openDetail(ticker){
     </div>`).join('');
 
   // Stats
-  let adrVal = s.adr||0;
-  if(!adrVal && s.tags){ const t=s.tags.find(t=>t.includes('ADR')); if(t){const m=t.match(/([\d.]+)%/);if(m)adrVal=parseFloat(m[1]);} }
+  const parsed = parseFromTags(s);
   const stats = {
-    'ADR%': adrVal>0?adrVal.toFixed(1)+'%':'—',
-    'From High': s.from_high_pct!=null?s.from_high_pct.toFixed(1)+'%':'—',
-    'Vol Ratio': s.vol_ratio!=null?s.vol_ratio.toFixed(2)+'x':'—',
+    'ADR%': parsed.adr>0?parsed.adr.toFixed(1)+'%':'—',
+    'From High': parsed.fromHigh!=null?parsed.fromHigh.toFixed(1)+'%':'—',
+    'Vol Ratio': parsed.volRatio||'—',
+    'Tight %': parsed.tight!=null?parsed.tight.toFixed(1)+'%':'—',
     'Short %': (s.short_float||s.sf)?(s.short_float||s.sf).toFixed(1)+'%':'—',
     'Sector': s.sector||'—',
-    ...(s.base_count?{'Base #': s.base_count===1?'1st Base':s.base_count===2?'2nd Base':'3rd+ Base'}:{}),
+    ...(s.base_count?{'Base': s.base_count===1?'1st':s.base_count===2?'2nd':'3rd+'}:{}),
     ...(s.pivot?{'Pivot': '$'+fmtPrice(s.pivot)}:{}),
   };
   document.getElementById('d-stats').innerHTML = Object.entries(stats).map(([k,v])=>
