@@ -405,7 +405,7 @@ body.light-mode .detail-header{background:var(--bg2)}
       </div>
       <div class="toolbar-chip on" id="chip-ready" onclick="toggleChip(this,'ready')">✓ Ready</div>
       <div class="toolbar-chip on" id="chip-good" onclick="toggleChip(this,'good')">◎ Good</div>
-      <div class="toolbar-chip" id="chip-dev" onclick="toggleChip(this,'dev')">· Dev</div>
+      <div class="toolbar-chip on" id="chip-dev" onclick="toggleChip(this,'dev')">· Dev</div>
       <span class="result-count" id="result-count">—</span>
       <button id="export-btn" onclick="exportCSV()">Export CSV</button>
     </div>
@@ -494,7 +494,7 @@ let ACTIVE_MODE = 'swing';
 let ACTIVE_STRAT = 'ALL';
 let ACTIVE_SCREENER_SECTOR = 'ALL';
 let selectedTicker = null;
-let statusChips = new Set(['ready','good']);
+let statusChips = new Set(['ready','good','dev']);
 let WATCHLIST = JSON.parse(localStorage.getItem('me_watchlist')||'[]');
 let WL_NOTES  = JSON.parse(localStorage.getItem('st_notes')||'{}');
 
@@ -574,7 +574,8 @@ function renderTableRows(){
   const sortBy    = document.getElementById('sf-sort').value;
 
   let filtered = stocks.filter(s=>{
-    const status = (s.status||'').toLowerCase();
+    const rawStatus = (s.status||'').toLowerCase();
+    const status = rawStatus.startsWith('dev') ? 'dev' : rawStatus;
     if(!statusChips.has(status)) return false;
     if(readyOnly && status!=='ready') return false;
     if(search && !s.ticker.toLowerCase().includes(search) && !(s.name||'').toLowerCase().includes(search)) return false;
@@ -591,7 +592,8 @@ function renderTableRows(){
     return 0;
   });
 
-  document.getElementById('result-count').textContent = filtered.length+' results';
+  const total = stocks.length;
+  document.getElementById('result-count').textContent = filtered.length===total ? filtered.length+' results' : filtered.length+' of '+total;
 
   const tbody = document.getElementById('table-body');
   if(!filtered.length){
@@ -674,7 +676,6 @@ function openDetail(ticker){
   let adrVal = s.adr||0;
   if(!adrVal && s.tags){ const t=s.tags.find(t=>t.includes('ADR')); if(t){const m=t.match(/([\d.]+)%/);if(m)adrVal=parseFloat(m[1]);} }
   const stats = {
-    'Price': '$'+fmtPrice(s.price||0),
     'ADR%': adrVal>0?adrVal.toFixed(1)+'%':'—',
     'From High': s.from_high_pct!=null?s.from_high_pct.toFixed(1)+'%':'—',
     'Vol Ratio': s.vol_ratio!=null?s.vol_ratio.toFixed(2)+'x':'—',
@@ -871,13 +872,13 @@ async function init(){
   if(cntSwing) cntSwing.textContent = swingTickers.size;
   const cntLT = document.getElementById('cnt-longterm');
   if(cntLT) cntLT.textContent = (DATA.longterm||[]).length;
-  // Update counts after render to reflect actual deduplicated totals
+  // Update counts after data loads — show total unique tickers
   setTimeout(()=>{
     const swingTotal = getStocksForMC('swing').length;
     const ltTotal = (DATA.longterm||[]).length;
     if(document.getElementById('cnt-swing')) document.getElementById('cnt-swing').textContent = swingTotal;
     if(document.getElementById('cnt-longterm')) document.getElementById('cnt-longterm').textContent = ltTotal;
-  }, 100);
+  }, 200);
 
   renderIndexes();
   renderBreadth();
