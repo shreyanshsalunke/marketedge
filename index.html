@@ -61,12 +61,12 @@ body{font-family:'JetBrains Mono',monospace;background:var(--bg);color:var(--tex
 .tab-btn.active .dot{background:var(--accent)}
 
 /* ── APP BODY: 3-column THEMATIC layout ── */
-.app-layout{display:grid;grid-template-columns:220px 1fr;height:calc(100vh - 92px);overflow:hidden}
+.app-layout{display:flex;height:calc(100vh - 92px);overflow:hidden}
 .pane{display:none}.pane.active{display:contents}
 #pane-screener.active{display:contents}
 
 /* ── LEFT SIDEBAR ── */
-.sidebar{background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;padding:12px 10px;display:flex;flex-direction:column;gap:6px}
+.sidebar{width:220px;min-width:220px;background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;padding:12px 10px;display:flex;flex-direction:column;gap:6px;flex-shrink:0}
 .sidebar::-webkit-scrollbar{width:3px}
 .sidebar::-webkit-scrollbar-thumb{background:var(--border2)}
 .sidebar-label{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;padding:4px 6px 6px}
@@ -90,7 +90,7 @@ body{font-family:'JetBrains Mono',monospace;background:var(--bg);color:var(--tex
 .sf-select{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:var(--radius);font-family:'JetBrains Mono',monospace;font-size:10px;outline:none;cursor:pointer;width:100%}
 
 /* ── MAIN CONTENT ── */
-.main-content{display:flex;flex-direction:column;overflow:hidden}
+.main-content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 
 /* ── TOOLBAR ── */
 .screener-toolbar{display:flex;align-items:center;gap:8px;padding:9px 16px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap}
@@ -137,17 +137,17 @@ td.td-name{font-family:'Inter',sans-serif;font-size:11px;color:var(--text3);max-
 .earn-flag{font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(241,107,107,.15);color:#f16b6b;border:1px solid rgba(241,107,107,.3);white-space:nowrap}
 
 /* ── DETAIL PANEL ── */
-.detail-panel{position:relative;width:320px;min-width:320px;height:calc(100vh - 92px);background:var(--bg2);border-left:1px solid var(--border);overflow-y:auto;transform:translateX(100%);transition:transform var(--t);display:none}
-.detail-panel.open{transform:translateX(0);display:block}
+.detail-panel{width:0;min-width:0;background:var(--bg2);border-left:0px solid var(--border);overflow-y:auto;overflow-x:hidden;transition:width var(--t),min-width var(--t);flex-shrink:0;display:block}
+.detail-panel.open{width:320px;min-width:320px;border-left-width:1px}
 .detail-panel::-webkit-scrollbar{width:3px}
 .detail-panel::-webkit-scrollbar-thumb{background:var(--border2)}
-.detail-header{padding:16px 16px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:5}
+.detail-header{padding:16px 16px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:5;min-width:320px}
 .detail-close{position:absolute;top:12px;right:12px;width:24px;height:24px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .2s}
 .detail-close:hover{background:var(--bg4);color:var(--text)}
 .d-ticker{font-family:'Clash Display',sans-serif;font-size:24px;font-weight:700;color:var(--text);margin-bottom:2px}
 .d-name{font-size:10px;color:var(--text3);margin-bottom:8px}
 .d-price{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;color:var(--text)}
-.detail-body{padding:14px 16px;display:flex;flex-direction:column;gap:16px}
+.detail-body{padding:14px 16px;display:flex;flex-direction:column;gap:16px;min-width:320px}
 .d-section-title{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
 .rank-box{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:var(--radius);background:rgba(77,158,247,.08);border:1px solid rgba(77,158,247,.2)}
 .rank-label{font-size:10px;color:var(--text2)}
