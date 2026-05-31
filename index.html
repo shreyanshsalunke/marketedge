@@ -425,18 +425,7 @@ body.light-mode .detail-header{background:var(--bg2)}
     <div class="table-wrap">
       <table>
         <thead>
-          <tr>
-            <th style="width:32px">#</th>
-            <th style="width:90px">Ticker</th>
-            <th>Company</th>
-            <th style="width:85px">Price</th>
-            <th style="width:100px">RS</th>
-            <th style="width:80px">Setup</th>
-            <th style="width:55px">ADR%</th>
-            <th style="width:62px">Score</th>
-            <th style="width:95px">Status</th>
-            <th style="width:44px"></th>
-          </tr>
+          <tr id="table-head-row"></tr>
         </thead>
         <tbody id="table-body">
           <tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text3)">Loading…</td></tr>
@@ -614,6 +603,12 @@ function renderTableRows(){
   const total = stocks.length;
   document.getElementById('result-count').textContent = filtered.length===total ? filtered.length+' results' : filtered.length+' of '+total;
 
+  // Set correct headers
+  const isCore = ACTIVE_MC==='longterm';
+  document.getElementById('table-head-row').innerHTML = isCore
+    ? '<th style="width:32px">#</th><th style="width:90px">Ticker</th><th>Company</th><th style="width:85px">Price</th><th style="width:100px">RS</th><th style="width:70px">EPS%</th><th style="width:70px">Rev%</th><th style="width:62px">Score</th><th style="width:95px">Status</th><th style="width:44px"></th>'
+    : '<th style="width:32px">#</th><th style="width:90px">Ticker</th><th>Company</th><th style="width:85px">Price</th><th style="width:100px">RS</th><th style="width:80px">Setup</th><th style="width:55px">ADR%</th><th style="width:62px">Score</th><th style="width:95px">Status</th><th style="width:44px"></th>';
+
   const tbody = document.getElementById('table-body');
   if(!filtered.length){
     tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:36px;color:var(--text3)">No results</td></tr>';
@@ -634,14 +629,20 @@ function renderTableRows(){
     const barCol = rs>=85?'bar-green':rs>=70?'bar-blue':'bar-yellow';
     const name = (s.name||'').replace(/, Inc\.?$/i,'').replace(/, Corp\.?$/i,'').replace(/, Ltd\.?$/i,'').replace(/, LLC\.?$/i,'').replace(/, Holdings?\.?$/i,'');
     const isSelected = selectedTicker===s.ticker;
+    const eps = s.eps_growth||s.eps||0;
+    const rev = s.rev_growth||s.rev||0;
+    const midCols = ACTIVE_MC==='longterm'
+      ? `<td style="font-size:11px;color:${eps>=0?'var(--bull)':'var(--bear)'}">${eps>=0?'+':''}${eps.toFixed(0)}%</td>
+         <td style="font-size:11px;color:${rev>=0?'var(--bull)':'var(--bear)'}">${rev>=0?'+':''}${rev.toFixed(0)}%</td>`
+      : `<td style="font-size:10px;color:var(--text3)">${setup}</td>
+         <td>${adr>0?adr.toFixed(1)+'%':'—'}</td>`;
     return `<tr onclick="openDetail('${s.ticker}')" class="${isSelected?'row-selected':''}">
       <td style="color:var(--text3);font-size:10px">${i+1}</td>
       <td class="td-ticker">${s.ticker} <button class="star-btn${isSaved(s.ticker)?' saved':''}" onclick="event.stopPropagation();toggleWatchlist('${s.ticker}')">${isSaved(s.ticker)?'★':'☆'}</button> ${earningsFlag(s.ticker)}</td>
       <td class="td-name">${name}</td>
       <td>$${fmtPrice(s.price||0)}</td>
       <td><div class="rs-bar-wrap"><span>${rs.toFixed(0)}</span><div class="rs-bar"><div class="rs-bar-fill ${barCol}" style="width:${rs}%"></div></div></div></td>
-      <td style="font-size:10px;color:var(--text3)">${setup}</td>
-      <td>${adr>0?adr.toFixed(1)+'%':'—'}</td>
+      ${midCols}
       <td><span class="score-pill ${scoreClass}">${score.toFixed(0)}</span></td>
       <td><span class="status-pill ${stClass}">${stIcon} ${status}</span></td>
       <td><button onclick="event.stopPropagation();openTV('${s.ticker}')" style="background:rgba(77,158,247,.08);border:1px solid rgba(77,158,247,.2);color:var(--accent);border-radius:4px;font-size:9px;font-family:var(--font-mono);padding:2px 6px;cursor:pointer">TV ↗</button></td>
