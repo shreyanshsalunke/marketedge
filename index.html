@@ -105,10 +105,10 @@ body{font-family:'JetBrains Mono',monospace;background:var(--bg);color:var(--tex
 #export-btn:hover{color:var(--accent);border-color:var(--accent)}
 
 /* ── TABLE ── */
-.table-wrap{flex:1;overflow-y:auto;overflow-x:hidden}
+.table-wrap{flex:1;overflow-y:auto;overflow-x:auto}
 .table-wrap::-webkit-scrollbar{width:4px}
 .table-wrap::-webkit-scrollbar-thumb{background:var(--border2)}
-table{width:100%;border-collapse:collapse;table-layout:fixed}
+table{width:100%;border-collapse:collapse}
 thead{position:sticky;top:0;z-index:10;background:var(--bg2)}
 thead tr{border-bottom:1px solid var(--border)}
 th{padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;color:var(--text3);text-align:left;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;cursor:pointer;user-select:none;overflow:hidden}
@@ -137,17 +137,17 @@ td.td-name{font-family:'Inter',sans-serif;font-size:11px;color:var(--text3);max-
 .earn-flag{font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(241,107,107,.15);color:#f16b6b;border:1px solid rgba(241,107,107,.3);white-space:nowrap}
 
 /* ── DETAIL PANEL ── */
-.detail-panel{position:fixed;right:0;top:92px;bottom:0;width:0;background:var(--bg2);border-left:1px solid var(--border);overflow-y:auto;overflow-x:hidden;transition:width var(--t);z-index:50;display:block}
-.detail-panel.open{width:320px}
+.detail-panel{width:0;background:var(--bg2);border-left:0 solid var(--border);overflow-y:auto;overflow-x:hidden;transition:width var(--t),border-left-width var(--t);flex-shrink:0}
+.detail-panel.open{width:340px;border-left-width:1px}
 .detail-panel::-webkit-scrollbar{width:3px}
 .detail-panel::-webkit-scrollbar-thumb{background:var(--border2)}
-.detail-header{padding:16px 16px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:5;width:320px}
+.detail-header{padding:16px 16px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:5;min-width:340px}
 .detail-close{position:absolute;top:12px;right:12px;width:24px;height:24px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .2s}
 .detail-close:hover{background:var(--bg4);color:var(--text)}
 .d-ticker{font-family:'Clash Display',sans-serif;font-size:24px;font-weight:700;color:var(--text);margin-bottom:2px}
 .d-name{font-size:10px;color:var(--text3);margin-bottom:8px}
 .d-price{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;color:var(--text)}
-.detail-body{padding:14px 16px;display:flex;flex-direction:column;gap:16px;width:320px}
+.detail-body{padding:14px 16px;display:flex;flex-direction:column;gap:16px;min-width:340px}
 .d-section-title{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
 .rank-box{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:var(--radius);background:rgba(77,158,247,.08);border:1px solid rgba(77,158,247,.2)}
 .rank-label{font-size:10px;color:var(--text2)}
@@ -426,15 +426,15 @@ body.light-mode .detail-header{background:var(--bg2)}
       <table>
         <thead>
           <tr>
-            <th style="width:28px">#</th>
-            <th style="width:100px">Ticker</th>
+            <th style="width:32px">#</th>
+            <th style="width:90px">Ticker</th>
             <th>Company</th>
-            <th style="width:80px">Price</th>
-            <th style="width:90px">RS</th>
-            <th style="width:90px">Setup</th>
+            <th style="width:85px">Price</th>
+            <th style="width:100px">RS</th>
+            <th style="width:80px">Setup</th>
             <th style="width:55px">ADR%</th>
-            <th style="width:60px">Score</th>
-            <th style="width:90px">Status</th>
+            <th style="width:62px">Score</th>
+            <th style="width:95px">Status</th>
             <th style="width:44px"></th>
           </tr>
         </thead>
@@ -614,7 +614,7 @@ function renderTableRows(){
     const stClass = status==='READY'?'st-ready':status==='GOOD'?'st-good':'st-dev';
     const stIcon = status==='READY'?'✓':status==='GOOD'?'◎':'·';
     const barCol = rs>=85?'bar-green':rs>=70?'bar-blue':'bar-yellow';
-    const name = (s.name||'').replace(/(,? Inc\.?|,? Corp\.?|,? Ltd\.?|,? Holdings?\.?)/gi,'');
+    const name = (s.name||'').replace(/, Inc\.?$/i,'').replace(/, Corp\.?$/i,'').replace(/, Ltd\.?$/i,'').replace(/, LLC\.?$/i,'').replace(/, Holdings?\.?$/i,'');
     const isSelected = selectedTicker===s.ticker;
     return `<tr onclick="openDetail('${s.ticker}')" class="${isSelected?'row-selected':''}">
       <td style="color:var(--text3);font-size:10px">${i+1}</td>
@@ -695,12 +695,12 @@ function openDetail(ticker){
   document.getElementById('d-tv-link').href = 'https://www.tradingview.com/chart/?symbol='+ticker;
 
   document.getElementById('detail-panel').classList.add('open');
-  document.querySelector('.main-content').style.marginRight = '320px';
+
 }
 
 function closeDetail(){
   document.getElementById('detail-panel').classList.remove('open');
-  document.querySelector('.main-content').style.marginRight = '0';
+
   selectedTicker = null;
   renderTableRows();
 }
