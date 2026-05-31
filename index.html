@@ -545,9 +545,8 @@ function toggleChip(el, status){
 }
 
 // ── TABLE RENDER ──────────────────────────────────────────────────────────────
-function getStocks(){
-  if(ACTIVE_MC==='longterm') return DATA.longterm||[];
-  // Swing: merge all swing methodologies, deduplicate by ticker, keep highest score
+function getStocksForMC(mc){
+  if(mc==='longterm') return DATA.longterm||[];
   const swingKeys = ['qullamaggie','minervini','oneil','weinstein'];
   const tickerMap = {};
   swingKeys.forEach(key=>{
@@ -564,6 +563,7 @@ function getStocks(){
   });
   return Object.values(tickerMap).sort((a,b)=>(b.score||0)-(a.score||0));
 }
+function getStocks(){ return getStocksForMC(ACTIVE_MC); }
 
 function renderTableRows(){
   const stocks = getStocks();
@@ -671,13 +671,17 @@ function openDetail(ticker){
     </div>`).join('');
 
   // Stats
+  let adrVal = s.adr||0;
+  if(!adrVal && s.tags){ const t=s.tags.find(t=>t.includes('ADR')); if(t){const m=t.match(/([\d.]+)%/);if(m)adrVal=parseFloat(m[1]);} }
   const stats = {
-    'ADR%': (s.adr||0).toFixed(1)+'%',
+    'Price': '$'+fmtPrice(s.price||0),
+    'ADR%': adrVal>0?adrVal.toFixed(1)+'%':'—',
     'From High': s.from_high_pct!=null?s.from_high_pct.toFixed(1)+'%':'—',
     'Vol Ratio': s.vol_ratio!=null?s.vol_ratio.toFixed(2)+'x':'—',
     'Short %': (s.short_float||s.sf)?(s.short_float||s.sf).toFixed(1)+'%':'—',
     'Sector': s.sector||'—',
-    'Score Δ': s.score_delta!=null?(s.score_delta>0?'▲+':s.score_delta<0?'▼':'')+s.score_delta.toFixed(1):'—',
+    ...(s.base_count?{'Base #': s.base_count===1?'1st Base':s.base_count===2?'2nd Base':'3rd+ Base'}:{}),
+    ...(s.pivot?{'Pivot': '$'+fmtPrice(s.pivot)}:{}),
   };
   document.getElementById('d-stats').innerHTML = Object.entries(stats).map(([k,v])=>
     `<div class="stat-item"><div class="stat-lbl">${k}</div><div class="stat-val">${v}</div></div>`).join('');
@@ -859,7 +863,7 @@ async function init(){
     document.getElementById('updated').textContent = 'Scanned '+local+' ET';
   }
 
-  // Sidebar counts
+  // Sidebar counts — show after dedup
   const swingKeys = ['qullamaggie','minervini','oneil','weinstein'];
   const swingTickers = new Set();
   swingKeys.forEach(k=>(DATA[k]||[]).forEach(s=>swingTickers.add(s.ticker)));
@@ -867,6 +871,13 @@ async function init(){
   if(cntSwing) cntSwing.textContent = swingTickers.size;
   const cntLT = document.getElementById('cnt-longterm');
   if(cntLT) cntLT.textContent = (DATA.longterm||[]).length;
+  // Update counts after render to reflect actual deduplicated totals
+  setTimeout(()=>{
+    const swingTotal = getStocksForMC('swing').length;
+    const ltTotal = (DATA.longterm||[]).length;
+    if(document.getElementById('cnt-swing')) document.getElementById('cnt-swing').textContent = swingTotal;
+    if(document.getElementById('cnt-longterm')) document.getElementById('cnt-longterm').textContent = ltTotal;
+  }, 100);
 
   renderIndexes();
   renderBreadth();
