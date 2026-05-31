@@ -369,29 +369,13 @@ body.light-mode .detail-header{background:var(--bg2)}
   <!-- LEFT: methodology sidebar -->
   <div class="sidebar">
     <div class="sidebar-label">Methodology</div>
-    <div class="method-card active" data-mc="qullamaggie" onclick="selectMC(this,'qullamaggie')">
-      <div class="mc-top"><span class="mc-name">Qullamaggie</span><span class="mc-count" id="cnt-qullamaggie">—</span></div>
-      <div class="mc-desc">VCP, Flag & Tight Base near pivot</div>
-    </div>
-    <div class="method-card" data-mc="minervini" onclick="selectMC(this,'minervini')">
-      <div class="mc-top"><span class="mc-name">Minervini</span><span class="mc-count" id="cnt-minervini">—</span></div>
-      <div class="mc-desc">SEPA trend template + EPS accel</div>
-    </div>
-    <div class="method-card" data-mc="oneil" onclick="selectMC(this,'oneil')">
-      <div class="mc-top"><span class="mc-name">O'Neil</span><span class="mc-count" id="cnt-oneil">—</span></div>
-      <div class="mc-desc">CAN SLIM base breakout</div>
-    </div>
-    <div class="method-card" data-mc="weinstein" onclick="selectMC(this,'weinstein')">
-      <div class="mc-top"><span class="mc-name">Weinstein</span><span class="mc-count" id="cnt-weinstein">—</span></div>
-      <div class="mc-desc">Stage 2 breakout above 30W MA</div>
+    <div class="method-card active" data-mc="swing" onclick="selectMC(this,'swing')">
+      <div class="mc-top"><span class="mc-name">Swing Trading</span><span class="mc-count" id="cnt-swing">—</span></div>
+      <div class="mc-desc">VCP, Flag & Tight Base. High RS, volume contraction near pivot.</div>
     </div>
     <div class="method-card" data-mc="longterm" onclick="selectMC(this,'longterm')">
       <div class="mc-top"><span class="mc-name">Core</span><span class="mc-count" id="cnt-longterm">—</span></div>
-      <div class="mc-desc">Quality compounders at 200 SMA</div>
-    </div>
-    <div class="method-card" data-mc="themes" onclick="selectMC(this,'themes')">
-      <div class="mc-top"><span class="mc-name">Thematic</span><span class="mc-count" id="cnt-themes">—</span></div>
-      <div class="mc-desc">Pure-play leaders in hot themes</div>
+      <div class="mc-desc">Quality compounders pulling back to rising 200 SMA.</div>
     </div>
 
     <div class="sidebar-divider"></div>
@@ -505,7 +489,7 @@ body.light-mode .detail-header{background:var(--bg2)}
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let DATA = {};
 let ACTIVE_TF = 'd1';
-let ACTIVE_MC = 'qullamaggie';
+let ACTIVE_MC = 'swing';
 let ACTIVE_MODE = 'swing';
 let ACTIVE_STRAT = 'ALL';
 let ACTIVE_SCREENER_SECTOR = 'ALL';
@@ -562,8 +546,23 @@ function toggleChip(el, status){
 
 // ── TABLE RENDER ──────────────────────────────────────────────────────────────
 function getStocks(){
-  const key = ACTIVE_MC==='longterm'?'longterm':ACTIVE_MC;
-  return DATA[key] || [];
+  if(ACTIVE_MC==='longterm') return DATA.longterm||[];
+  // Swing: merge all swing methodologies, deduplicate by ticker, keep highest score
+  const swingKeys = ['qullamaggie','minervini','oneil','weinstein'];
+  const tickerMap = {};
+  swingKeys.forEach(key=>{
+    (DATA[key]||[]).forEach(s=>{
+      if(!tickerMap[s.ticker]){
+        tickerMap[s.ticker] = {...s, methods:[s.strategy].filter(Boolean)};
+      } else {
+        if(s.strategy && !tickerMap[s.ticker].methods.includes(s.strategy))
+          tickerMap[s.ticker].methods.push(s.strategy);
+        if((s.score||0) > (tickerMap[s.ticker].score||0))
+          tickerMap[s.ticker] = {...s, methods:tickerMap[s.ticker].methods};
+      }
+    });
+  });
+  return Object.values(tickerMap).sort((a,b)=>(b.score||0)-(a.score||0));
 }
 
 function renderTableRows(){
@@ -854,10 +853,13 @@ async function init(){
   }
 
   // Sidebar counts
-  ['qullamaggie','minervini','oneil','weinstein','longterm','themes'].forEach(k=>{
-    const el = document.getElementById('cnt-'+k);
-    if(el) el.textContent = (DATA[k]||[]).length;
-  });
+  const swingKeys = ['qullamaggie','minervini','oneil','weinstein'];
+  const swingTickers = new Set();
+  swingKeys.forEach(k=>(DATA[k]||[]).forEach(s=>swingTickers.add(s.ticker)));
+  const cntSwing = document.getElementById('cnt-swing');
+  if(cntSwing) cntSwing.textContent = swingTickers.size;
+  const cntLT = document.getElementById('cnt-longterm');
+  if(cntLT) cntLT.textContent = (DATA.longterm||[]).length;
 
   renderIndexes();
   renderBreadth();
